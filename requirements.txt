@@ -3,3 +3,4 @@ fastapi>=0.115.12
 uvicorn>=0.34.3
 sqlalchemy>=2.0.41
 sqlalchemy-utils>=0.41.2
+nanoid
