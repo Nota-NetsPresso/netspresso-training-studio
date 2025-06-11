@@ -4,6 +4,7 @@ from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.configs.settings import settings
+from src.core.db.session import init_db
 
 
 def init_routers(app: FastAPI) -> None:
@@ -27,6 +28,9 @@ def make_middleware() -> list[Middleware]:
 
 
 def create_app():
+    # Initialize database
+    init_db()
+
     app = FastAPI(
         title="NetsPresso Training Studio",
         version="0.1.0",
