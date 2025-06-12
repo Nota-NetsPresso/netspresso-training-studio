@@ -3,9 +3,8 @@ from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from netspresso.enums import Status
-from netspresso.exceptions.project import ProjectNameTooLongException
+from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
+from src.exceptions.project import ProjectNameTooLongException
 
 
 class ProjectCreate(BaseModel):
@@ -28,7 +27,6 @@ class ProjectPayload(ProjectCreate):
     project_id: str = Field(..., description="The unique identifier for the project.")
     model_ids: List[str] = Field(default_factory=list, description="The list of models associated with the project.")
     user_id: str = Field(..., description="The unique identifier for the user associated with the project.")
-    project_abs_path: str = Field(..., description="The absolute path of the project.")
     created_at: datetime = Field(..., description="The timestamp when the project was created.")
     updated_at: datetime = Field(..., description="The timestamp when the project was last updated.")
 
@@ -37,7 +35,6 @@ class ProjectSimplePayload(ProjectCreate):
     model_config = ConfigDict(from_attributes=True)
 
     project_id: str = Field(..., description="The unique identifier for the project.")
-    project_abs_path: str = Field(..., description="The absolute path of the project.")
     created_at: datetime = Field(..., description="The timestamp when the project was created.")
     updated_at: datetime = Field(..., description="The timestamp when the project was last updated.")
 
