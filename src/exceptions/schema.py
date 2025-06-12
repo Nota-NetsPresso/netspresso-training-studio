@@ -1,15 +1,8 @@
-from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
-
-class Origin(str, Enum):
-    ROUTER = "router"
-    SERVICE = "service"
-    REPOSITORY = "repository"
-    CLIENT = "client"
-    LIBRARY = "library"
+from src.enums.exception import Origin
 
 
 class AdditionalData(BaseModel):
@@ -29,7 +22,7 @@ class ExceptionDetail(BaseModel):
                 {
                     "data": {
                         "origin": Origin.ROUTER,
-                        "error_log": "AttributeError(\"module 'np_compressor_core.torch.pruning' has no attribute 'VBMF'\")",
+                        "error_log": "AttributeError(\"module 'np_compressor_core.torch.pruning' has no attribute 'VBMF'\")"
                     },
                     "error_code": "CS40020",
                     "name": "NotFoundMethodClassException",

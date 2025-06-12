@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import HTTPException
 
-from app.exceptions.schema import AdditionalData, ExceptionDetail
+from src.exceptions.schema import AdditionalData, ExceptionDetail
 
 
 class ExceptionBase(HTTPException):
