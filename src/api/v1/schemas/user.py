@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
 
-from app.api.v1.schemas.base import ResponseItem
+from src.api.v1.schemas.base import ResponseItem
+
+
+class Token(BaseModel):
+    access_token: str = Field(..., description="The access token for the user.")
+    refresh_token: str = Field(..., description="The refresh token for the user.")
 
 
 class CreditInfo(BaseModel):
