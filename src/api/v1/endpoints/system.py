@@ -1,14 +1,15 @@
 from fastapi import APIRouter
 
-from app.api.v1.schemas.system import GpusInfoResponse, ServerInfoPayload, ServerInfoResponse
-from app.services.system import system_service
+from src.api.v1.schemas.system import GpusInfoResponse, LibraryInfo, ServerInfoPayload, ServerInfoResponse
+from src.configs.version import BACKEND_VERSION
+from src.services.system import system_service
 
 router = APIRouter()
 
 
 @router.get("/server-info", response_model=ServerInfoResponse)
 def get_server_info() -> ServerInfoResponse:
-    installed_libraries = system_service.get_installed_libraries()
+    installed_libraries = system_service.get_backend_version()
 
     server_info = ServerInfoPayload(installed_libraries=installed_libraries)
 
