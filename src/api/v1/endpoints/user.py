@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends
 
-from app.api.deps import api_key_header
-from app.api.v1.schemas.user import UserResponse
-from app.services.user import user_service
+from src.api.deps import get_token
+from src.api.v1.schemas.user import Token, UserResponse
+from src.services.user import user_service
 
 router = APIRouter()
 
 
 @router.get("/me", response_model=UserResponse)
-def get_user(*, api_key: str = Depends(api_key_header)) -> UserResponse:
-    user = user_service.get_user_info(api_key=api_key)
+def get_user(
+    token: Token = Depends(get_token),
+) -> UserResponse:
+    user = user_service.get_user_info(token=token.access_token)
 
     return UserResponse(data=user)
