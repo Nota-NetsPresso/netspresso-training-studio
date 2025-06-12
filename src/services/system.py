@@ -2,10 +2,18 @@ from typing import List
 
 from gpustat import GPUStatCollection
 
-from src.api.v1.schemas.system import GpuInfoPayload
+from src.api.v1.schemas.system import GpuInfoPayload, LibraryInfo
+from src.configs.version import BACKEND_VERSION
 
 
 class SystemService:
+    def get_backend_version(self) -> List[LibraryInfo]:
+        backend_version = BACKEND_VERSION
+        installed_libraries = [
+            LibraryInfo(name="backend", version=backend_version),
+        ]
+        return installed_libraries
+
     def get_gpus_info(self) -> List[GpuInfoPayload]:
         stats = GPUStatCollection.new_query()
 

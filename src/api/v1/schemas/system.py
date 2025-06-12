@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.api.v1.schemas.base import ResponseItem
+from src.api.v1.schemas.base import ResponseItem
 
 
 class LibraryInfo(BaseModel):

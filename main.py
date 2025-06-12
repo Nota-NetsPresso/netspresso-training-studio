@@ -3,13 +3,14 @@ from fastapi import FastAPI
 from fastapi.middleware import Middleware
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.api import api_router
 from src.configs.settings import settings
+from src.configs.version import BACKEND_VERSION
 from src.core.db.session import init_db
 
 
 def init_routers(app: FastAPI) -> None:
-    # app.include_router(api_router)
-    pass
+    app.include_router(api_router)
 
 
 def make_middleware() -> list[Middleware]:
@@ -33,7 +34,7 @@ def create_app():
 
     app = FastAPI(
         title="NetsPresso Training Studio",
-        version="0.1.0",
+        version=BACKEND_VERSION,
         middleware=make_middleware(),
     )
     init_routers(app=app)
