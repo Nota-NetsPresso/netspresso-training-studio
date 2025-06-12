@@ -1,17 +1,16 @@
 import copy
-import os
 from pathlib import Path
 from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.task.train.dataset import LocalTrainingDatasetPayload
-from app.api.v1.schemas.task.train.hyperparameter import (
+from src.api.v1.schemas.tasks.dataset import LocalTrainingDatasetPayload
+from src.api.v1.schemas.tasks.hyperparameter import (
     OptimizerPayload,
     SchedulerPayload,
     TrainerModel,
 )
-from app.api.v1.schemas.task.train.train_task import (
+from src.api.v1.schemas.tasks.training_task import (
     FrameworkPayload,
     PretrainedModelPayload,
     TaskPayload,
@@ -19,22 +18,20 @@ from app.api.v1.schemas.task.train.train_task import (
     TrainingCreatePayload,
     TrainingPayload,
 )
-from app.worker.training_task import train_model
-from netspresso.enums.project import SubFolder
-from netspresso.enums.train import MODEL_DISPLAY_MAP, MODEL_GROUP_MAP
-from netspresso.netspresso import NetsPresso
-from netspresso.trainer.models import get_all_available_models
-from netspresso.trainer.optimizers.optimizers import get_supported_optimizers
-from netspresso.trainer.schedulers.schedulers import get_supported_schedulers
-from netspresso.utils.db.models.base import generate_uuid
-from netspresso.utils.db.models.model import Model
-from netspresso.utils.db.models.training import TrainingTask
-from netspresso.utils.db.repositories.compression import compression_task_repository
-from netspresso.utils.db.repositories.model import model_repository
-from netspresso.utils.db.repositories.training import training_task_repository
+from src.configs.settings import settings
+from src.enums.model import ModelType
+from src.enums.training import MODEL_DISPLAY_MAP, MODEL_GROUP_MAP
+from src.models.base import generate_uuid
+from src.models.training import TrainingTask
+from src.modules.trainer.models import get_all_available_models
+from src.modules.trainer.optimizers.optimizers import get_supported_optimizers
+from src.modules.trainer.schedulers.schedulers import get_supported_schedulers
+from src.repositories.model import model_repository
+from src.repositories.training import training_task_repository
+from src.worker.training_task import train_model
 
 
-class TrainTaskService:
+class TrainingTaskService:
     def get_supported_models(self) -> Dict[str, List[TrainerModel]]:
         """Get all supported models grouped by task."""
         available_models = get_all_available_models()
@@ -110,7 +107,7 @@ class TrainTaskService:
         )
 
         # Extract existing names from models and count occurrences of base name
-        base_name_count = sum(1 for model in models if model.type == "trained_models" and model.name.startswith(name))
+        base_name_count = sum(1 for model in models if model.type == ModelType.TRAINED_MODEL and model.name.startswith(name))
 
         # If no models with this name exist, return original name
         if base_name_count == 0:
@@ -167,9 +164,7 @@ class TrainTaskService:
         Returns:
             LocalTrainingDatasetsResponse: List of dataset information including name and path
         """
-        NP_TRAINING_STUDIO_PATH = Path(os.environ.get("NP_TRAINING_STUDIO_PATH", "/np_training_studio"))
-        training_datasets_dir = NP_TRAINING_STUDIO_PATH / "datasets" / "local"
-
+        training_datasets_dir = Path(settings.NP_TRAINING_STUDIO_PATH) / "datasets" / "local"
         training_datasets = [d for d in training_datasets_dir.iterdir() if d.is_dir()]
 
         training_datasets_payload = [
@@ -189,4 +184,4 @@ class TrainTaskService:
         return self._convert_to_payload_format(training_task)
 
 
-train_task_service = TrainTaskService()
+training_task_service = TrainingTaskService()

@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import api_key_header
-from app.api.v1.schemas.task.train.dataset import LocalTrainingDatasetsResponse
-from app.api.v1.schemas.task.train.hyperparameter import (
+from src.api.deps import api_key_header
+from src.api.v1.schemas.tasks.dataset import LocalTrainingDatasetsResponse
+from src.api.v1.schemas.tasks.hyperparameter import (
     SupportedModelResponse,
     SupportedOptimizersResponse,
     SupportedSchedulersResponse,
 )
-from app.api.v1.schemas.task.train.train_task import TrainingCreate, TrainingCreateResponse, TrainingResponse
-from app.services.training_task import train_task_service
-from netspresso.utils.db.session import get_db
+from src.api.v1.schemas.tasks.training_task import TrainingCreate, TrainingCreateResponse, TrainingResponse
+from src.core.db.session import get_db
+from src.services.training_task import training_task_service
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ router = APIRouter()
     description="Get supported models for training tasks.",
 )
 def get_supported_models() -> SupportedModelResponse:
-    supported_models = train_task_service.get_supported_models()
+    supported_models = training_task_service.get_supported_models()
 
     return SupportedModelResponse(data=supported_models)
 
@@ -32,7 +32,7 @@ def get_supported_models() -> SupportedModelResponse:
     description="Get supported optimizers for training tasks.",
 )
 def get_supported_optimizers() -> SupportedOptimizersResponse:
-    supported_optimizers = train_task_service.get_supported_optimizers()
+    supported_optimizers = training_task_service.get_supported_optimizers()
 
     return SupportedOptimizersResponse(data=supported_optimizers)
 
@@ -43,7 +43,7 @@ def get_supported_optimizers() -> SupportedOptimizersResponse:
     description="Get supported schedulers for training tasks.",
 )
 def get_supported_schedulers() -> SupportedSchedulersResponse:
-    supported_schedulers = train_task_service.get_supported_schedulers()
+    supported_schedulers = training_task_service.get_supported_schedulers()
 
     return SupportedSchedulersResponse(data=supported_schedulers)
 
@@ -54,7 +54,7 @@ def create_training_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> TrainingCreateResponse:
-    training_task = train_task_service.create_training_task(db=db, training_in=request_body, api_key=api_key)
+    training_task = training_task_service.create_training_task(db=db, training_in=request_body, api_key=api_key)
 
     return TrainingCreateResponse(data=training_task)
 
@@ -66,13 +66,13 @@ def get_training_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> TrainingResponse:
-    training_task = train_task_service.get_training_task(db=db, task_id=task_id, api_key=api_key)
+    training_task = training_task_service.get_training_task(db=db, task_id=task_id, api_key=api_key)
 
     return TrainingResponse(data=training_task)
 
 
 @router.get("/trainings/datasets/local", response_model=LocalTrainingDatasetsResponse)
 def get_training_datasets() -> LocalTrainingDatasetsResponse:
-    training_datasets = train_task_service.get_training_datasets_from_local()
+    training_datasets = training_task_service.get_training_datasets_from_local()
 
     return LocalTrainingDatasetsResponse(data=training_datasets)
