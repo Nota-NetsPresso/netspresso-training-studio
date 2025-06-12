@@ -2,19 +2,19 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from netspresso.enums.metadata import Status
-from netspresso.exceptions.training import TrainingTaskIsDeletedException, TrainingTaskNotFoundException
-from netspresso.utils.db.models.training import TrainingTask
-from netspresso.utils.db.repositories.base import BaseRepository
+from src.enums.task import TaskStatus, TaskType
+from src.exceptions.task import TaskIsDeletedException, TaskNotFoundException
+from src.models.training import TrainingTask
+from src.repositories.base import BaseRepository
 
 
 class TrainingTaskRepository(BaseRepository[TrainingTask]):
     def __is_available(self, task: Optional[TrainingTask]) -> TrainingTask:
         if task is None:
-            raise TrainingTaskNotFoundException()
+            raise TaskNotFoundException(task_type=TaskType.TRAINING)
 
         if task.is_deleted:
-            raise TrainingTaskIsDeletedException(task_id=task.task_id)
+            raise TaskIsDeletedException(task_type=TaskType.TRAINING, task_id=task.task_id)
 
         return task
 
@@ -37,7 +37,7 @@ class TrainingTaskRepository(BaseRepository[TrainingTask]):
         return self.__is_available(task=task)
 
     def get_completed_tasks(self, db: Session, user_id: str) -> List[TrainingTask]:
-        conditions = [self.model.status == Status.COMPLETED, self.model.user_id == user_id]
+        conditions = [self.model.status == TaskStatus.COMPLETED, self.model.user_id == user_id]
         tasks = self.find_all(
             db=db,
             conditions=conditions,

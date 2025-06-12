@@ -2,19 +2,20 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from netspresso.enums.metadata import Status
-from netspresso.exceptions.compression import CompressionTaskIsDeletedException, CompressionTaskNotFoundException
-from netspresso.utils.db.models.compression import CompressionModelResult, CompressionTask
-from netspresso.utils.db.repositories.base import BaseRepository, Order, TimeSort
+from src.enums.sort import Order, TimeSort
+from src.enums.task import TaskStatus, TaskType
+from src.exceptions.task import TaskIsDeletedException, TaskNotFoundException
+from src.models.compression import CompressionModelResult, CompressionTask
+from src.repositories.base import BaseRepository
 
 
 class CompressionTaskRepository(BaseRepository[CompressionTask]):
     def __is_available(self, task: Optional[CompressionTask]) -> CompressionTask:
         if task is None:
-            raise CompressionTaskNotFoundException()
+            raise TaskNotFoundException(task_type=TaskType.COMPRESSION)
 
         if task.is_deleted:
-            raise CompressionTaskIsDeletedException(task_id=task.task_id)
+            raise TaskIsDeletedException(task_type=TaskType.COMPRESSION, task_id=task.task_id)
 
         return task
 
@@ -61,7 +62,7 @@ class CompressionTaskRepository(BaseRepository[CompressionTask]):
         return self.__is_available(task=task)
 
     def get_completed_tasks(self, db: Session, user_id: str) -> List[CompressionTask]:
-        conditions = [self.model.status == Status.COMPLETED, self.model.user_id == user_id]
+        conditions = [self.model.status == TaskStatus.COMPLETED, self.model.user_id == user_id]
         tasks = self.find_all(
             db=db,
             conditions=conditions,

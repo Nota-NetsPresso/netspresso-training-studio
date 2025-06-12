@@ -3,19 +3,20 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from netspresso.enums.metadata import Status
-from netspresso.exceptions.evaluation import EvaluationTaskIsDeletedException, EvaluationTaskNotFoundException
-from netspresso.utils.db.models.evaluation import EvaluationDataset, EvaluationTask
-from netspresso.utils.db.repositories.base import BaseRepository, Order, TimeSort
+from src.enums.sort import Order, TimeSort
+from src.enums.task import TaskStatus, TaskType
+from src.exceptions.task import TaskIsDeletedException, TaskNotFoundException
+from src.models.evaluation import EvaluationDataset, EvaluationTask
+from src.repositories.base import BaseRepository
 
 
 class EvaluationTaskRepository(BaseRepository[EvaluationTask]):
     def __is_available(self, task: Optional[EvaluationTask]) -> EvaluationTask:
         if task is None:
-            raise EvaluationTaskNotFoundException()
+            raise TaskNotFoundException(task_type=TaskType.EVALUATION)
 
         if task.is_deleted:
-            raise EvaluationTaskIsDeletedException(task_id=task.task_id)
+            raise TaskIsDeletedException(task_type=TaskType.EVALUATION, task_id=task.task_id)
 
         return task
 
@@ -150,7 +151,7 @@ class EvaluationTaskRepository(BaseRepository[EvaluationTask]):
             self.model.user_id == user_id,
             self.model.input_model_id == model_id,
             self.model.dataset_id == dataset_id,
-            self.model.status == Status.COMPLETED
+            self.model.status == TaskStatus.COMPLETED
         ]
 
         return self.find_all(

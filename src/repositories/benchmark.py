@@ -2,18 +2,20 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from netspresso.exceptions.benchmark import BenchmarkTaskIsDeletedException, BenchmarkTaskNotFoundException
-from netspresso.utils.db.models.benchmark import BenchmarkTask
-from netspresso.utils.db.repositories.base import BaseRepository, Order, TimeSort
+from src.enums.sort import Order, TimeSort
+from src.enums.task import TaskType
+from src.exceptions.task import TaskIsDeletedException, TaskNotFoundException
+from src.models.benchmark import BenchmarkTask
+from src.repositories.base import BaseRepository
 
 
 class BenchmarkTaskRepository(BaseRepository[BenchmarkTask]):
     def __is_available(self, task: Optional[BenchmarkTask]) -> BenchmarkTask:
         if task is None:
-            raise BenchmarkTaskNotFoundException()
+            raise TaskNotFoundException(task_type=TaskType.BENCHMARK)
 
         if task.is_deleted:
-            raise BenchmarkTaskIsDeletedException(task_id=task.task_id)
+            raise TaskIsDeletedException(task_type=TaskType.BENCHMARK, task_id=task.task_id)
 
         return task
 

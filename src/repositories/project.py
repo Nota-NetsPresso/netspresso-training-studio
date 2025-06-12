@@ -2,9 +2,10 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from netspresso.exceptions.project import ProjectIsDeletedException, ProjectNotFoundException
-from netspresso.utils.db.models.project import Project
-from netspresso.utils.db.repositories.base import BaseRepository, Order, TimeSort
+from src.enums.sort import Order, TimeSort
+from src.exceptions.project import ProjectIsDeletedException, ProjectNotFoundException
+from src.models.project import Project
+from src.repositories.base import BaseRepository
 
 
 class ProjectRepository(BaseRepository[Project]):

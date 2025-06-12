@@ -2,9 +2,10 @@ from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
-from netspresso.exceptions.model import ModelIsDeletedException, ModelNotFoundException
-from netspresso.utils.db.models.model import Model
-from netspresso.utils.db.repositories.base import BaseRepository, Order, TimeSort
+from src.enums.sort import Order, TimeSort
+from src.exceptions.model import ModelIsDeletedException, ModelNotFoundException
+from src.models.model import Model
+from src.repositories.base import BaseRepository
 
 
 class ModelRepository(BaseRepository[Model]):
