@@ -24,3 +24,15 @@ class ModelIsDeletedException(ExceptionBase):
             name=self.__class__.__name__,
             message=f"The model with ID '{model_id}' has been already deleted.",
         )
+
+
+class ModelCannotBeDeletedException(ExceptionBase):
+    def __init__(self, model_id: str):
+        message = f"The model with ID '{model_id}' cannot be deleted. Only trained and compressed models can be deleted."
+        super().__init__(
+            data=AdditionalData(origin=Origin.REPOSITORY),
+            error_code="model40002",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            name=self.__class__.__name__,
+            message=message,
+        )
