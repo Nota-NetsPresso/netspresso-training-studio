@@ -67,7 +67,7 @@ def get_projects(
         start=start,
         size=size,
         order=order,
-        api_key=token.access_token,
+        token=token.access_token,
     )
     total_count = project_service.count_project_by_user_id(
         db=db,
