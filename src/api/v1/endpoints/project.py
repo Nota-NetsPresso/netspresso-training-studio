@@ -3,17 +3,18 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import api_key_header
-from app.api.v1.schemas.base import Order
-from app.api.v1.schemas.project import (
+from src.api.deps import get_token
+from src.api.v1.schemas.base import Order
+from src.api.v1.schemas.project import (
     ProjectCreate,
     ProjectDuplicationCheckResponse,
     ProjectDuplicationStatus,
     ProjectResponse,
     ProjectsResponse,
 )
-from app.services.project import project_service
-from netspresso.utils.db.session import get_db
+from src.api.v1.schemas.user import Token
+from src.core.db.session import get_db
+from src.services.project import project_service
 
 router = APIRouter()
 
@@ -22,9 +23,14 @@ router = APIRouter()
 def create_project(
     *,
     request_body: ProjectCreate,
-    api_key: str = Depends(api_key_header),
+    db: Session = Depends(get_db),
+    token: Token = Depends(get_token),
 ) -> ProjectResponse:
-    project = project_service.create_project(project_name=request_body.project_name, api_key=api_key)
+    project = project_service.create_project(
+        db=db,
+        project_name=request_body.project_name,
+        token=token.access_token,
+    )
 
     return ProjectResponse(data=project)
 
@@ -34,10 +40,12 @@ def check_project_duplication(
     *,
     request_body: ProjectCreate,
     db: Session = Depends(get_db),
-    api_key: str = Depends(api_key_header),
+    token: Token = Depends(get_token),
 ) -> ProjectDuplicationCheckResponse:
     is_duplicated = project_service.check_project_duplication(
-        db=db, project_name=request_body.project_name, api_key=api_key
+        db=db,
+        project_name=request_body.project_name,
+        token=token.access_token,
     )
 
     duplication_status = ProjectDuplicationStatus(is_duplicated=is_duplicated)
@@ -49,13 +57,22 @@ def check_project_duplication(
 def get_projects(
     *,
     db: Session = Depends(get_db),
-    api_key: str = Depends(api_key_header),
+    token: Token = Depends(get_token),
     start: Optional[int] = 0,
     size: Optional[int] = 10,
     order: Order = Order.DESC,
 ) -> ProjectsResponse:
-    projects = project_service.get_projects(db=db, start=start, size=size, order=order, api_key=api_key)
-    total_count = project_service.count_project_by_user_id(db=db, api_key=api_key)
+    projects = project_service.get_projects(
+        db=db,
+        start=start,
+        size=size,
+        order=order,
+        api_key=token.access_token,
+    )
+    total_count = project_service.count_project_by_user_id(
+        db=db,
+        token=token.access_token,
+    )
 
     return ProjectsResponse(data=projects, result_count=len(projects), total_count=total_count)
 
@@ -65,9 +82,13 @@ def get_project(
     *,
     project_id: str,
     db: Session = Depends(get_db),
-    api_key: str = Depends(api_key_header),
+    token: Token = Depends(get_token),
 ) -> ProjectResponse:
-    project = project_service.get_project(db=db, project_id=project_id, api_key=api_key)
+    project = project_service.get_project(
+        db=db,
+        project_id=project_id,
+        token=token.access_token,
+    )
 
     return ProjectResponse(data=project)
 
@@ -77,8 +98,12 @@ def delete_project(
     *,
     project_id: str,
     db: Session = Depends(get_db),
-    api_key: str = Depends(api_key_header),
+    token: Token = Depends(get_token),
 ) -> ProjectResponse:
-    project = project_service.delete_project(db=db, project_id=project_id, api_key=api_key)
+    project = project_service.delete_project(
+        db=db,
+        project_id=project_id,
+        token=token.access_token,
+    )
 
     return ProjectResponse(data=project)
