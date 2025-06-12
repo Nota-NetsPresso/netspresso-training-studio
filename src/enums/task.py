@@ -3,6 +3,7 @@ from enum import Enum
 
 class TaskType(str, Enum):
     TRAINING = "training"
+    RETRAINING = "retraining"
     EVALUATION = "evaluation"
     COMPRESSION = "compression"
     CONVERSION = "conversion"

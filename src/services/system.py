@@ -2,21 +2,10 @@ from typing import List
 
 from gpustat import GPUStatCollection
 
-from app.api.v1.schemas.system import GpuInfoPayload, LibraryInfo
-from netspresso.clients.utils.system import get_package_version
+from src.api.v1.schemas.system import GpuInfoPayload
 
 
 class SystemService:
-    def get_installed_libraries(self) -> List[LibraryInfo]:
-        LIBRARY_KEYS = ["netspresso"]
-
-        installed_libraries = [
-            LibraryInfo(name=library_name, version=get_package_version(package_name=library_name))
-            for library_name in LIBRARY_KEYS
-        ]
-
-        return installed_libraries
-
     def get_gpus_info(self) -> List[GpuInfoPayload]:
         stats = GPUStatCollection.new_query()
 

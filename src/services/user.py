@@ -1,29 +1,27 @@
-from app.api.v1.schemas.user import CreditInfo, DetailData, UserPayload
-from netspresso.netspresso import NetsPresso
+from src.api.v1.schemas.user import CreditInfo, DetailData, UserPayload
+from src.clients.auth import auth_client
 
 
 class UserService:
-    def get_user_info(self, api_key: str) -> UserPayload:
-        netspresso = NetsPresso(api_key=api_key)
+    def get_user_info(self, token: str) -> UserPayload:
+        user_info = auth_client.get_user_info(access_token=token)
 
-        user = UserPayload(
-            user_id=netspresso.user_info.user_id,
-            email=netspresso.user_info.email,
+        return UserPayload(
+            user_id=user_info.user_id,
+            email=user_info.email,
             detail_data=DetailData(
-                first_name=netspresso.user_info.detail_data.first_name,
-                last_name=netspresso.user_info.detail_data.last_name,
-                company=netspresso.user_info.detail_data.company,
+                first_name=user_info.detail_data.first_name,
+                last_name=user_info.detail_data.last_name,
+                company=user_info.detail_data.company,
             ),
             credit_info=CreditInfo(
-                free=netspresso.user_info.credit_info.free,
-                reward=netspresso.user_info.credit_info.reward,
-                contract=netspresso.user_info.credit_info.contract,
-                paid=netspresso.user_info.credit_info.paid,
-                total=netspresso.user_info.credit_info.total,
+                free=user_info.credit_info.free,
+                reward=user_info.credit_info.reward,
+                contract=user_info.credit_info.contract,
+                paid=user_info.credit_info.paid,
+                total=user_info.credit_info.total,
             ),
         )
-
-        return user
 
 
 user_service = UserService()

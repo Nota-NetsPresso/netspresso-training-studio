@@ -4,22 +4,22 @@ from typing import List, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.model import ModelPayload, PresignedUrl
-from app.configs.settings import settings
-from app.services.training_task import train_task_service
-from app.zenko.storage_handler import ObjectStorageHandler
-from netspresso.enums.metadata import Status
-from netspresso.enums.project import SubFolder
-from netspresso.enums.task import TaskType
-from netspresso.exceptions.model import ModelCannotBeDeletedException
-from netspresso.netspresso import NetsPresso
-from netspresso.utils.db.repositories.base import Order, TimeSort
-from netspresso.utils.db.repositories.benchmark import benchmark_task_repository
-from netspresso.utils.db.repositories.compression import compression_task_repository
-from netspresso.utils.db.repositories.conversion import conversion_task_repository
-from netspresso.utils.db.repositories.evaluation import evaluation_task_repository
-from netspresso.utils.db.repositories.model import model_repository
-from netspresso.utils.db.repositories.training import training_task_repository
+from src.api.v1.schemas.model import ModelPayload, PresignedUrl
+from src.configs.settings import settings
+from src.enums.model import ModelType
+from src.enums.task import TaskStatus, TaskType
+from src.exceptions.auth import UnauthorizedUserAccessException
+from src.exceptions.model import ModelCannotBeDeletedException
+from src.repositories.base import Order, TimeSort
+from src.repositories.benchmark import benchmark_task_repository
+from src.repositories.compression import compression_task_repository
+from src.repositories.conversion import conversion_task_repository
+from src.repositories.evaluation import evaluation_task_repository
+from src.repositories.model import model_repository
+from src.repositories.training import training_task_repository
+from src.services.training_task import train_task_service
+from src.services.user import user_service
+from src.zenko.storage_handler import ObjectStorageHandler
 
 
 class ModelService:
@@ -168,14 +168,14 @@ class ModelService:
     def get_models(
         self,
         db: Session,
-        api_key: str,
+        token: str,
         task_type: Optional[TaskType] = None,
         project_id: Optional[str] = None
     ) -> List[ModelPayload]:
-        netspresso = NetsPresso(api_key=api_key)
+        user_info = user_service.get_user_info(token=token)
 
         # Base query by user ID
-        user_id = netspresso.user_info.user_id
+        user_id = user_info.user_id
 
         # If project_id is provided, filter by project
         if project_id:
@@ -188,12 +188,12 @@ class ModelService:
         new_models = []
         for model in models:
             # Handle retraining task - only return completed trained and compressed models
-            if task_type == TaskType.RETRAIN:
-                if model.type not in [SubFolder.TRAINED_MODELS, SubFolder.COMPRESSED_MODELS]:
+            if task_type == TaskType.RETRAINING:
+                if model.type not in [ModelType.TRAINED_MODEL, ModelType.COMPRESSED_MODEL]:
                     continue
                 training_task = (
                     training_task_repository.get_by_model_id(db=db, model_id=model.model_id)
-                    if model.type == SubFolder.TRAINED_MODELS
+                    if model.type == ModelType.TRAINED_MODEL
                     else training_task_repository.get_by_model_id(
                         db=db,
                         model_id=compression_task_repository.get_by_model_id(
@@ -202,25 +202,25 @@ class ModelService:
                         ).input_model_id
                     )
                 )
-                if not training_task or training_task.status != Status.COMPLETED:
+                if not training_task or training_task.status != TaskStatus.COMPLETED:
                     continue
             # Handle compression task separately as it only needs trained models
-            elif task_type == TaskType.COMPRESS:
-                if model.type != SubFolder.TRAINED_MODELS:
+            elif task_type == TaskType.COMPRESSION:
+                if model.type != ModelType.TRAINED_MODEL:
                     continue
             # Handle other conversion/evaluation tasks that can use both trained and compressed models
-            elif task_type in [TaskType.BENCHMARK, TaskType.EVALUATE, TaskType.CONVERT]:
-                if model.type not in [SubFolder.TRAINED_MODELS, SubFolder.COMPRESSED_MODELS]:
+            elif task_type in [TaskType.BENCHMARK, TaskType.EVALUATION, TaskType.CONVERSION]:
+                if model.type not in [ModelType.TRAINED_MODEL, ModelType.COMPRESSED_MODEL]:
                     continue
             # For other cases (like listing), exclude converted and benchmarked models
             else:
-                if model.type in [SubFolder.CONVERTED_MODELS, SubFolder.BENCHMARKED_MODELS]:
+                if model.type in [ModelType.CONVERTED_MODEL, ModelType.BENCHMARKED_MODEL]:
                     continue
 
             model_payload = ModelPayload.model_validate(model)
 
             # Get training task based on model type
-            if model.type == SubFolder.COMPRESSED_MODELS:
+            if model.type == ModelType.COMPRESSED_MODEL:
                 compression_task = compression_task_repository.get_by_model_id(db=db, model_id=model.model_id)
                 training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
             else:
@@ -233,11 +233,16 @@ class ModelService:
 
         return new_models
 
-    def get_model(self, db: Session, model_id: str, api_key: str) -> ModelPayload:
+    def get_model(self, db: Session, model_id: str, token: str) -> ModelPayload:
+        user_info = user_service.get_user_info(token=token)
+
         model = model_repository.get_by_model_id(db=db, model_id=model_id)
+        if user_info.user_id != model.user_id:
+            raise UnauthorizedUserAccessException(user_id=user_info.user_id)
+
         model_payload = ModelPayload.model_validate(model)
 
-        if model.type == SubFolder.COMPRESSED_MODELS:
+        if model.type == ModelType.COMPRESSED_MODEL:
             compression_task = compression_task_repository.get_by_model_id(db=db, model_id=model_id)
             training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
             model_payload.status = compression_task.status
@@ -248,7 +253,7 @@ class ModelService:
         model_payload.train_task_id = training_task.task_id
         return self._attach_child_task_info(db, model_payload)
 
-    def delete_model(self, db: Session, model_id: str, api_key: str) -> ModelPayload:
+    def delete_model(self, db: Session, model_id: str, token: str) -> ModelPayload:
         """Delete model and all related tasks
 
         Args:
@@ -262,15 +267,20 @@ class ModelService:
         Raises:
             HTTPException: If model not found
         """
+        user_info = user_service.get_user_info(token=token)
+
         # Get model before deletion
         model = model_repository.get_by_model_id(db=db, model_id=model_id)
-        if model.type not in [SubFolder.TRAINED_MODELS, SubFolder.COMPRESSED_MODELS]:
+        if user_info.user_id != model.user_id:
+            raise UnauthorizedUserAccessException(user_id=user_info.user_id)
+
+        if model.type not in [ModelType.TRAINED_MODEL, ModelType.COMPRESSED_MODEL]:
             raise ModelCannotBeDeletedException(model_id=model_id)
 
         # Delete model and training task
         model = model_repository.soft_delete(db=db, model=model)
 
-        if model.type == SubFolder.COMPRESSED_MODELS:
+        if model.type == ModelType.COMPRESSED_MODEL:
             compression_task = compression_task_repository.get_by_model_id(db=db, model_id=model_id)
             training_task = train_task_service.get_training_task_by_model_id(db=db, model_id=compression_task.input_model_id)
             compression_task_repository.soft_delete(db=db, compression_task=compression_task)
@@ -284,7 +294,7 @@ class ModelService:
 
         return self._attach_child_task_info(db, model_payload)
 
-    def download_model(self, db: Session, model_id: str, api_key: str) -> PresignedUrl:
+    def download_model(self, db: Session, model_id: str, token: str) -> PresignedUrl:
         """Download model file from Zenko
 
         Args:
@@ -298,9 +308,13 @@ class ModelService:
         Raises:
             HTTPException: If model not found or file not accessible
         """
-        model = model_repository.get_by_model_id(db=db, model_id=model_id)
+        user_info = user_service.get_user_info(token=token)
 
-        if model.type == SubFolder.TRAINED_MODELS:
+        model = model_repository.get_by_model_id(db=db, model_id=model_id)
+        if user_info.user_id != model.user_id:
+            raise UnauthorizedUserAccessException(user_id=user_info.user_id)
+
+        if model.type == ModelType.TRAINED_MODEL:
             object_path = f"{model.object_path}/model.onnx"
             extension = "onnx"
         else:

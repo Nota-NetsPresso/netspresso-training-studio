@@ -28,5 +28,7 @@ class Settings(BaseSettings):
     SCALITY_ACCESS_KEY_ID: str = os.environ.get("SCALITY_ACCESS_KEY_ID")
     SCALITY_SECRET_ACCESS_KEY: str = os.environ.get("SCALITY_SECRET_ACCESS_KEY")
 
+    NP_TRAINING_STUDIO_PATH: str = os.environ.get("NP_TRAINING_STUDIO_PATH", "/np_training_studio")
+
 
 settings = Settings()

@@ -15,7 +15,6 @@ class Project(BaseModel):
     )
     project_name = Column(String(30), nullable=False, unique=True)
     user_id = Column(String(36), nullable=False)
-    project_abs_path = Column(String(500), nullable=False)
 
     # Relationship to Model
     models = relationship(
