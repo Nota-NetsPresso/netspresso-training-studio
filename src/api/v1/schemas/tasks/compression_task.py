@@ -3,9 +3,9 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from netspresso.enums.compression import CompressionMethod, GroupPolicy, LayerNorm, Policy, RecommendationMethod, StepOp
-from netspresso.exceptions.compressor import (
+from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
+from src.enums.compression import CompressionMethod, GroupPolicy, LayerNorm, Policy, RecommendationMethod, StepOp
+from src.exceptions.compression import (
     NotValidChannelAxisRangeException,
     NotValidSlampRatioException,
     NotValidVbmfRatioException,

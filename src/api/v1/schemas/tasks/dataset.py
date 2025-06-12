@@ -2,8 +2,8 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.api.v1.schemas.base import ResponseItem, ResponseListItems
-from netspresso.enums.train import StorageLocation
+from src.api.v1.schemas.base import ResponseListItems
+from src.enums.training import StorageLocation
 
 
 class DatasetCreate(BaseModel):

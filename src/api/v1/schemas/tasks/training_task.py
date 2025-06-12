@@ -3,9 +3,9 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.api.v1.schemas.base import ResponseItem
-from app.api.v1.schemas.task.conversion.conversion_task import ConversionForEvaluationCreate
-from netspresso.enums.train import (
+from src.api.v1.schemas.base import ResponseItem
+from src.api.v1.schemas.tasks.conversion_task import ConversionForEvaluationCreate
+from src.enums.training import (
     FRAMEWORK_DISPLAY_MAP,
     MODEL_DISPLAY_MAP,
     MODEL_GROUP_MAP,

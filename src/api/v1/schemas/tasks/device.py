@@ -2,8 +2,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.api.v1.schemas.base import ResponseListItems
-from netspresso.enums.conversion import (
+from src.api.v1.schemas.base import ResponseListItems
+from src.enums.conversion import (
     PRECISION_FOR_BENCHMARK_DISPLAY_MAP,
     PRECISION_FOR_CONVERSION_DISPLAY_MAP,
     TARGET_FRAMEWORK_DISPLAY_MAP,
@@ -14,7 +14,7 @@ from netspresso.enums.conversion import (
     TargetFramework,
     TargetFrameworkDisplay,
 )
-from netspresso.enums.device import (
+from src.enums.device import (
     DEVICE_BRAND_MAP,
     DEVICE_DISPLAY_MAP,
     HARDWARE_TYPE_DISPLAY_MAP,

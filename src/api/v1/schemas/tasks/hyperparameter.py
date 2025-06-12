@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from netspresso.enums.train import (
+from src.enums.training import (
     OPTIMIZER_DISPLAY_MAP,
     SCHEDULER_DISPLAY_MAP,
     Optimizer,
