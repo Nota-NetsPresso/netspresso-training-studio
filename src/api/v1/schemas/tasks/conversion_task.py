@@ -3,16 +3,15 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from app.api.v1.schemas.device import (
+from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
+from src.api.v1.schemas.tasks.device import (
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
     TargetDevicePayload,
     TargetFrameworkPayload,
 )
-from app.api.v1.schemas.task.compression.compression_task import CompressionPayload
-from netspresso.enums.conversion import EvaluationTargetFramework, PrecisionForConversion, TargetFramework
-from netspresso.enums.device import DeviceName, SoftwareVersion
+from src.enums.conversion import EvaluationTargetFramework, PrecisionForConversion, TargetFramework
+from src.enums.device import DeviceName, SoftwareVersion
 
 
 class ConversionForEvaluationCreate(BaseModel):

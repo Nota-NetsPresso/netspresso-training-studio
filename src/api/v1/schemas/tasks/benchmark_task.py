@@ -3,8 +3,8 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from app.api.v1.schemas.device import (
+from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
+from src.api.v1.schemas.tasks.device import (
     BenchmarkResultPayload,
     HardwareTypePayload,
     PrecisionForBenchmarkPayload,
@@ -12,7 +12,7 @@ from app.api.v1.schemas.device import (
     TargetDevicePayload,
     TargetFrameworkPayload,
 )
-from netspresso.enums.device import DeviceName, HardwareType, SoftwareVersion
+from src.enums.device import DeviceName, HardwareType, SoftwareVersion
 
 
 class BenchmarkCreate(BaseModel):

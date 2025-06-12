@@ -3,16 +3,16 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
-from app.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from app.api.v1.schemas.project import ProjectSimplePayload
-from netspresso.enums import Status
+from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
+from src.api.v1.schemas.project import ProjectSimplePayload
+from src.enums.task import TaskStatus
 
 
 class ExperimentStatus(BaseModel):
-    compress: Status = Field(default=Status.NOT_STARTED, description="The status of the compression experiment.")
-    convert: Status = Field(default=Status.NOT_STARTED, description="The status of the conversion experiment.")
-    benchmark: Status = Field(default=Status.NOT_STARTED, description="The status of the benchmark experiment.")
-    evaluate: Status = Field(default=Status.NOT_STARTED, description="The status of the evaluation experiment.")
+    compress: TaskStatus = Field(default=TaskStatus.NOT_STARTED, description="The status of the compression experiment.")
+    convert: TaskStatus = Field(default=TaskStatus.NOT_STARTED, description="The status of the conversion experiment.")
+    benchmark: TaskStatus = Field(default=TaskStatus.NOT_STARTED, description="The status of the benchmark experiment.")
+    evaluate: TaskStatus = Field(default=TaskStatus.NOT_STARTED, description="The status of the evaluation experiment.")
 
 
 class ModelPayload(BaseModel):
@@ -22,7 +22,7 @@ class ModelPayload(BaseModel):
     name: str = Field(..., description="The name of the model.")
     type: str = Field(..., description="The type of the model (e.g., trained_model, compressed_model).")
     is_retrainable: bool
-    status: Status = Field(default=Status.NOT_STARTED, description="The current status of the model.")
+    status: TaskStatus = Field(default=TaskStatus.NOT_STARTED, description="The current status of the model.")
     train_task_id: Optional[str] = None
     project_id: str
     project: ProjectSimplePayload

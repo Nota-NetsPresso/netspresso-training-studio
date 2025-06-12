@@ -1,13 +1,13 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from app.api.v1.schemas.task.conversion.conversion_task import ConversionForEvaluationCreate
-from app.api.v1.schemas.task.train.dataset import EvaluationDatasetPayload
-from netspresso.enums.conversion import EvaluationTargetFramework
-from netspresso.enums.train import StorageLocation
+from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
+from src.api.v1.schemas.tasks.conversion_task import ConversionForEvaluationCreate
+from src.api.v1.schemas.tasks.dataset import EvaluationDatasetPayload
+from src.enums.conversion import EvaluationTargetFramework
+from src.enums.training import StorageLocation
 
 
 class EvaluationCreate(BaseModel):
