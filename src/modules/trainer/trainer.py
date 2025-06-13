@@ -1,4 +1,4 @@
-import warnings
+import tempfile
 from dataclasses import asdict
 from glob import glob
 from pathlib import Path
@@ -7,17 +7,12 @@ from typing import Any, Dict, List, Optional, Union
 import cv2
 import numpy as np
 from loguru import logger
-from omegaconf import OmegaConf
 
-from app.zenko.storage_handler import ObjectStorageHandler
-from netspresso.base import NetsPressoBase
-from netspresso.clients.auth import TokenHandler
-from netspresso.clients.dataforge.schemas.response_body import DatasetPayload, DatasetVersionInfo
-from netspresso.clients.launcher import launcher_client_v2
-from netspresso.enums import Framework, Status, Task
-from netspresso.enums.project import SubFolder
-from netspresso.enums.train import StorageLocation
-from netspresso.exceptions.trainer import (
+from src.configs.settings import settings
+from src.core.db.session import get_db_session
+from src.enums.task import TaskStatus
+from src.enums.training import StorageLocation, Task
+from src.exceptions.training import (
     BaseDirectoryNotFoundException,
     DirectoryNotFoundException,
     FailedTrainingException,
@@ -27,84 +22,50 @@ from netspresso.exceptions.trainer import (
     NotSupportedModelException,
     NotSupportedTaskException,
     RetrainingFunctionException,
-    TaskOrYamlPathException,
 )
-from netspresso.inferencer.preprocessors.base import Preprocessor
-from netspresso.metadata.common import InputShape
-from netspresso.trainer.augmentations import AUGMENTATION_CONFIG_TYPE, AugmentationConfig, Transform
-from netspresso.trainer.data import DATA_CONFIG_TYPE, ImageLabelPathConfig, PathConfig
-from netspresso.trainer.models import (
+from src.models.evaluation import EvaluationDataset
+from src.models.model import Model
+from src.models.training import (
+    Dataset,
+    Performance,
+    TrainingTask,
+)
+from src.modules.inferencer.preprocessors.base import Preprocessor
+from src.modules.trainer.augmentations import AUGMENTATION_CONFIG_TYPE, AugmentationConfig, Transform
+from src.modules.trainer.data import DATA_CONFIG_TYPE, ImageLabelPathConfig, PathConfig
+from src.modules.trainer.models import (
     CLASSIFICATION_MODELS,
     DETECTION_MODELS,
     SEGMENTATION_MODELS,
     CheckpointConfig,
-    ModelConfig,
 )
-from netspresso.trainer.optimizers.optimizers import get_supported_optimizers
-from netspresso.trainer.schedulers.schedulers import get_supported_schedulers
-from netspresso.trainer.storage import DatasetManager
-from netspresso.trainer.storage.dataforge import Split
-from netspresso.trainer.trainer_configs import TrainerConfigs
-from netspresso.trainer.training import TRAINING_CONFIG_TYPE, EnvironmentConfig, LoggingConfig, ScheduleConfig
-from netspresso.trainer.training.logging import Metrics, ModelSaveOptions
-from netspresso.utils import FileHandler
-from netspresso.utils.db.models.evaluation import EvaluationDataset
-from netspresso.utils.db.models.model import Model
-from netspresso.utils.db.models.project import Project
-from netspresso.utils.db.models.training import (
-    Augmentation,
-    Dataset,
-    Environment,
-    Hyperparameter,
-    Performance,
-    TrainingTask,
-)
-from netspresso.utils.db.repositories.evaluation import evaluation_dataset_repository
-from netspresso.utils.db.repositories.model import model_repository
-from netspresso.utils.db.repositories.training import training_task_repository
-from netspresso.utils.db.session import get_db_session
+from src.modules.trainer.optimizers.optimizers import get_supported_optimizers
+from src.modules.trainer.schedulers.schedulers import get_supported_schedulers
+from src.modules.trainer.trainer_configs import TrainerConfigs
+from src.modules.trainer.training import TRAINING_CONFIG_TYPE, EnvironmentConfig, LoggingConfig, ScheduleConfig
+from src.modules.trainer.training.logging import Metrics, ModelSaveOptions
+from src.repositories.evaluation import evaluation_dataset_repository
+from src.repositories.training import training_task_repository
+from src.utils.file import FileHandler
+from src.zenko.storage_handler import ObjectStorageHandler
 
 storage_handler = ObjectStorageHandler()
-BUCKET_NAME = "model"
 
 
-class Trainer(NetsPressoBase):
+class Trainer:
     """
     NetsPresso Trainer Class: Base class for training models.
     """
 
-    def __init__(
-        self, token_handler: TokenHandler, task: Optional[Union[str, Task]] = None, yaml_path: Optional[str] = None
-    ) -> None:
+    def __init__(self, task: Task) -> None:
         """Initialize the Trainer.
 
         Args:
-            task (Union[str, Task]], optional): The type of task (classification, detection, segmentation). Either 'task' or 'yaml_path' must be provided, but not both.
-            yaml_path (str, optional): Path to the YAML configuration file. Either 'task' or 'yaml_path' must be provided, but not both.
+            task (Task): The type of task (classification, detection, segmentation).
         """
-        super().__init__(token_handler=token_handler)
 
-        self.token_handler = token_handler
-        self.deprecated_names = {
-            "efficientformer": "efficientformer_l1",
-            "mobilenetv3_small": "mobilenet_v3_small",
-            "mobilenetv3_large": "mobilenet_v3_large",
-            "vit_tiny": "vit_tiny",
-            "mixnet_small": "mixnet_s",
-            "mixnet_medium": "mixnet_m",
-            "mixnet_large": "mixnet_l",
-            "pidnet": "pidnet_s",
-        }
+        self._initialize_from_task(task)
 
-        if (task is not None) == (yaml_path is not None):
-            raise TaskOrYamlPathException()
-
-        if task is not None:
-            self._initialize_from_task(task)
-        elif yaml_path is not None:
-            self._initialize_from_yaml(yaml_path)
-
-        self.dataset_manager = DatasetManager(token_handler=token_handler)
         self.is_dataforge = False
         self.test_dataset = None
         self.test_dataset_id = None
@@ -124,31 +85,6 @@ class Trainer(NetsPressoBase):
         self.augmentation = AUGMENTATION_CONFIG_TYPE[self.task]()
         self.logging = LoggingConfig()
         self.environment = EnvironmentConfig()
-
-    def _initialize_from_yaml(self, yaml_path: str) -> None:
-        """Initialize the Trainer object based on the configuration provided in a YAML file.
-
-        Args:
-            yaml_path (str): The path to the YAML file containing the configuration.
-        """
-
-        hparams = OmegaConf.load(yaml_path)
-        hparams["model"].pop("single_task_model")
-
-        metadata_path = Path(yaml_path).parent / "metadata.json"
-        metadata = FileHandler.load_json(metadata_path)
-        self.model_name = metadata["model_info"]["model"]
-
-        self.img_size = hparams["augmentation"]["img_size"]
-        self.task = hparams["data"]["task"]
-        self.available_models = list(self._get_available_models().keys())
-
-        self.data = DATA_CONFIG_TYPE[self.task](**hparams["data"])
-        self.model = ModelConfig(**hparams["model"])
-        self.training = ScheduleConfig(**hparams["training"])
-        self.augmentation = AugmentationConfig(**hparams["augmentation"])
-        self.logging = LoggingConfig(**hparams["logging"])
-        self.environment = EnvironmentConfig(**hparams["environment"])
 
     def _validate_task(self, task: Union[str, Task]):
         """Validate the provided task.
@@ -182,26 +118,6 @@ class Trainer(NetsPressoBase):
             raise NotSetModelException()
 
     def _get_available_models(self) -> Dict[str, Any]:
-        """Get available models based on the current task.
-
-        Returns:
-            Dict[str, Any]: A dictionary mapping model types to available models.
-        """
-
-        available_models = {
-            "classification": CLASSIFICATION_MODELS,
-            "detection": DETECTION_MODELS,
-            "segmentation": SEGMENTATION_MODELS,
-        }[self.task]
-
-        # Filter out deprecated names
-        filtered_models = {
-            name: config for name, config in available_models.items() if name not in self.deprecated_names
-        }
-
-        return filtered_models
-
-    def _get_available_models_w_deprecated_names(self) -> Dict[str, Any]:
         """Get available models based on the current task.
 
         Returns:
@@ -432,25 +348,14 @@ class Trainer(NetsPressoBase):
         Raises:
             ValueError: If the specified model is not supported for the current task.
         """
-
-        if model_name in self.deprecated_names:
-            warnings.filterwarnings("default", category=DeprecationWarning)
-            warnings.warn(
-                f"The model name '{model_name}' is deprecated and will be removed in a future version. "
-                f"Please use '{self.deprecated_names[model_name]}' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
-
         self.model_name = model_name
-        model = self._get_available_models_w_deprecated_names().get(model_name)
+        model = self._get_available_models().get(model_name)
         self.img_size = img_size
         self.logging.model_save_options.sample_input_size = [img_size, img_size]
 
         if model is None:
             raise NotSupportedModelException(
-                available_models=self._get_available_models_w_deprecated_names(),
+                available_models=self._get_available_models(),
                 model_name=model_name,
                 task=self.task,
             )
@@ -616,30 +521,14 @@ class Trainer(NetsPressoBase):
         self.augmentation.train = self._change_transforms(self.augmentation.train)
         self.augmentation.inference = self._change_transforms(self.augmentation.inference)
 
-    def _get_available_options(self):
-        self.token_handler.validate_token()
-        options_response = launcher_client_v2.converter.read_framework_options(
-            access_token=self.token_handler.tokens.access_token,
-            framework=Framework.ONNX,
-        )
-
-        available_options = options_response.data
-
-        # TODO: Will be removed when we support DLC in the future
-        available_options = [
-            available_option for available_option in available_options if available_option.framework != "dlc"
-        ]
-
-        return available_options
-
-    def _get_status_by_training_summary(self, status):
+    def _get_status_by_training_summary(self, status: str) -> TaskStatus:
         status_mapping = {
-            "success": Status.COMPLETED,
-            "stop": Status.STOPPED,
-            "error": Status.ERROR,
-            "": Status.IN_PROGRESS,
+            "success": TaskStatus.COMPLETED,
+            "stop": TaskStatus.STOPPED,
+            "error": TaskStatus.ERROR,
+            "": TaskStatus.IN_PROGRESS,
         }
-        return status_mapping.get(status, Status.IN_PROGRESS)
+        return status_mapping.get(status, TaskStatus.IN_PROGRESS)
 
     def find_best_model_paths(self, destination_folder: Path):
         best_fx_paths_set = set()
@@ -652,52 +541,7 @@ class Trainer(NetsPressoBase):
 
         return best_fx_paths, best_onnx_paths
 
-    def create_runtime_config(self, yaml_path):
-        hparams = OmegaConf.load(yaml_path)
-
-        preprocess = hparams.augmentation.inference
-        for _preprocess in preprocess:
-            if hasattr(_preprocess, "size") and _preprocess.size:
-                _preprocess.size = _preprocess.size[0]
-            if _preprocess.name == "resize":
-                _preprocess.resize_criteria = "long"
-
-        if hparams.model.task == Task.IMAGE_CLASSIFICATION:
-            visualize = {"params": {"class_map": hparams.data.id_mapping, "pallete": None}}
-        elif hparams.model.task == Task.OBJECT_DETECTION:
-            visualize = {
-                "params": {"class_map": hparams.data.id_mapping, "normalized": False, "brightness_factor": 1.5}
-            }
-        elif hparams.model.task == Task.SEMANTIC_SEGMENTATION:
-            visualize = {
-                "params": {
-                    "class_map": hparams.data.id_mapping,
-                    "pallete": None,
-                    "normalized": False,
-                    "brightness_factor": 1.5,
-                }
-            }
-
-        _config = {
-            "task": hparams.model.task,
-            "preprocess": preprocess,
-            "postprocess": hparams.model.postprocessor,
-            "visualize": visualize,
-        }
-        name = "runtime"
-        config = OmegaConf.create({name: _config})
-        save_path = Path(yaml_path).parent / f"{name}.yaml"
-        OmegaConf.save(config=config, f=save_path)
-
-        return save_path
-
-    def _save_train_task(self, train_task):
-        with get_db_session() as db:
-            train_task = training_task_repository.save(db=db, model=train_task)
-
-            return train_task
-
-    def update_task_status(self, task_id: str, status: Status, error_message: Optional[str] = None) -> None:
+    def update_task_status(self, task_id: str, status: TaskStatus, error_message: Optional[str] = None) -> None:
         """
         Update the task status.
 
@@ -718,89 +562,7 @@ class Trainer(NetsPressoBase):
                 error_message=error_message,
             )
 
-    def _save_model(self, model) -> Model:
-        with get_db_session() as db:
-            model = model_repository.save(db=db, model=model)
-
-            return model
-
-    def save_trained_model(self, model_name, project_id, user_id) -> Model:
-        model = Model(
-            name=model_name,
-            type=SubFolder.TRAINED_MODELS,
-            is_retrainable=True,
-            project_id=project_id,
-            user_id=user_id,
-        )
-        with get_db_session() as db:
-            model = model_repository.save(db=db, model=model)
-            return model
-
-    def create_training_task(self, model_id, task_id, user_id, training_type, input_model_id) -> TrainingTask:
-        with get_db_session() as db:
-            augs = [
-                Augmentation(
-                    name=train_aug.name,
-                    parameters=train_aug.to_parameters(),
-                    phase="train",
-                )
-                for train_aug in self.augmentation.train
-            ] + [
-                Augmentation(
-                    name=inference_aug.name,
-                    parameters=inference_aug.to_parameters(),
-                    phase="inference",
-                )
-                for inference_aug in self.augmentation.inference
-            ]
-            hyperparameter = Hyperparameter(
-                epochs=self.training.epochs,
-                batch_size=self.environment.batch_size,
-                optimizer=self.optimizer.asdict(),
-                scheduler=self.scheduler.asdict(),
-                augmentations=augs,
-            )
-            environment = Environment(
-                seed=self.environment.seed,
-                num_workers=self.environment.num_workers,
-                gpus=self.environment.gpus,
-            )
-            if task_id:
-                task = TrainingTask(
-                    task_id=task_id,
-                    pretrained_model=self.model_name,
-                    task=self.task,
-                    framework=Framework.PYTORCH,
-                    input_shapes=[InputShape(batch=1, channel=3, dimension=[self.img_size, self.img_size]).__dict__],
-                    status=Status.IN_PROGRESS,
-                    dataset=self.train_dataset,
-                    hyperparameter=hyperparameter,
-                    environment=environment,
-                    model_id=model_id,
-                    user_id=user_id,
-                    training_type=training_type,
-                    input_model_id=input_model_id,
-                )
-            else:
-                task = TrainingTask(
-                    pretrained_model=self.model_name,
-                    task=self.task,
-                    framework=Framework.PYTORCH,
-                    input_shapes=[InputShape(batch=1, channel=3, dimension=[self.img_size, self.img_size]).__dict__],
-                    status=Status.IN_PROGRESS,
-                    dataset=self.train_dataset,
-                    hyperparameter=hyperparameter,
-                    environment=environment,
-                    model_id=model_id,
-                    user_id=user_id,
-                    training_type=training_type,
-                    input_model_id=input_model_id,
-                )
-            task = training_task_repository.save(db=db, model=task)
-
-        return task
-
-    def create_performance(self, task: TrainingTask, training_summary):
+    def create_performance(self, training_task: TrainingTask, training_summary: Dict[str, Any]) -> TrainingTask:
         performance = Performance(
             train_losses=training_summary["train_losses"],
             valid_losses=training_summary["valid_losses"],
@@ -816,102 +578,52 @@ class Trainer(NetsPressoBase):
             total_epoch=training_summary["total_epoch"],
             status=training_summary["status"],
         )
+        training_task.performance = performance
 
-        task.performance = performance
-
-        task = self._save_train_task(train_task=task)
-
-        return task
+        return training_task
 
     def train(
         self,
+        db,
         gpus: str,
-        model_name: str,
-        project_id: str,
+        training_task_id: str,
         output_dir: Optional[str] = "./outputs",
-        task_id: Optional[str] = None,
-        training_type: Optional[str] = "training",
-        input_model_id: Optional[str] = None,
-    ) -> str:
-        """Train the model with the specified configuration.
-
-        Args:
-            gpus (str): GPU ids to use, separated by commas.
-            project_name (str): Project name to save the experiment.
-
-        Returns:
-            Dict: A dictionary containing information about the training.
-        """
-        from netspresso_trainer import train_with_yaml
-
+    ) -> TrainingTask:
         # Validate configuration and initialize
         self._validate_config()
         self._apply_img_size()
 
-        # Initialize project and model
-        model_name = model_name if model_name else f"{self.task}_{self.model_name}".lower()
-        project = self.get_project(project_id=project_id)
-
-        # Setup folder
-        destination_folder = self._prepare_destination_folder(project.project_abs_path, model_name)
-
-        # Create model and task
-        model = self._initialize_model(model_name, project)
-        train_task = self.create_training_task(
-            model_id=model.model_id,
-            task_id=task_id,
-            user_id=project.user_id,
-            training_type=training_type,
-            input_model_id=input_model_id,
-        )
+        temp_dir = Path(tempfile.mkdtemp(prefix="training_task_"))
 
         # Setup logging
-        self._setup_logging(output_dir, destination_folder.name)
+        self._setup_logging(output_dir, temp_dir.name)
         self.environment.gpus = gpus
 
         # Create training configurations
         configs = self._create_training_configs()
 
+        training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
+
         try:
-            # Train model
             self._execute_training(gpus, configs)
         except Exception as e:
-            self._handle_training_error(train_task, e)
+            self._handle_training_error(training_task, e)
         except KeyboardInterrupt:
-            train_task.status = Status.STOPPED
-            train_task.error_detail = FailedTrainingException(error_log="Training stopped by user").args[0]
+            training_task.status = TaskStatus.STOPPED
+            training_task.error_detail = FailedTrainingException(error_log="Training stopped by user").args[0]
         finally:
             # Cleanup and move files
-            self._cleanup_and_move_files(configs, destination_folder)
+            self._cleanup_and_move_files(configs, temp_dir)
 
             # Process training summary
-            train_task = self._process_training_summary(train_task, destination_folder)
+            training_task = self._process_training_summary(db=db, training_task=training_task, destination_folder=temp_dir)
 
-            # Save training task
-            train_task = self._save_train_task(train_task=train_task)
+            # Upload model files if completed
+            if training_task.status == TaskStatus.COMPLETED:
+                calibration_dataset = self.prepare_calibration_dataset(dataset_path=self.data.path.train.image, num_dataset=100)
+                self._upload_model_files(training_task, temp_dir, calibration_dataset)
 
-        # Upload model files if completed
-        if train_task.status == Status.COMPLETED:
-            calibration_dataset = self.prepare_calibration_dataset(dataset_path=self.data.path.train.image, num_dataset=100)
-            self._upload_model_files(train_task, model, destination_folder, calibration_dataset)
-
-        return train_task.task_id
-
-    def _prepare_destination_folder(self, project_abs_path, model_name):
-        """Prepare the folder to save the trained model."""
-        destination_folder = Path(project_abs_path) / SubFolder.TRAINED_MODELS.value / model_name
-        return FileHandler.create_unique_folder(folder_path=destination_folder)
-
-    def _initialize_model(self, model_name: str, project: Project) -> Model:
-        """Initialize and save the trained model object."""
-        model = self.save_trained_model(
-            model_name=model_name,
-            project_id=project.project_id,
-            user_id=project.user_id,
-        )
-        object_path = f"{project.user_id}/{project.project_id}/{model.model_id}"
-        model.object_path = object_path
-        return self._save_model(model=model)
+        return training_task
 
     def _setup_logging(self, output_dir, project_id):
         """Set up the logging directory."""
@@ -944,11 +656,11 @@ class Trainer(NetsPressoBase):
             environment=configs.environment,
         )
 
-    def _handle_training_error(self, train_task: TrainingTask, error):
+    def _handle_training_error(self, training_task: TrainingTask, error):
         """Handle training errors."""
         e = FailedTrainingException(error_log=error.args[0])
-        train_task.status = Status.ERROR
-        train_task.error_detail = e.args[0]
+        training_task.status = TaskStatus.ERROR
+        training_task.error_detail = e.args[0]
 
     def _cleanup_and_move_files(self, configs: TrainerConfigs, destination_folder: Path):
         """Clean up temporary files and move result files."""
@@ -958,7 +670,7 @@ class Trainer(NetsPressoBase):
         FileHandler.move_and_cleanup_folders(source_folder=self.logging_dir, destination_folder=destination_folder)
         logger.info(f"Files in {self.logging_dir} were moved to {destination_folder}.")
 
-    def _process_training_summary(self, train_task: TrainingTask, destination_folder):
+    def _process_training_summary(self, db, training_task: TrainingTask, destination_folder: Path):
         """Process training summary file and update training task status."""
         summary_path = destination_folder / "training_summary.json"
 
@@ -966,8 +678,8 @@ class Trainer(NetsPressoBase):
             logger.error(f"Training summary file not found at {summary_path}")
             error_msg = f"Training summary file not found at {summary_path}"
             training_summary = self._create_default_error_summary(error_msg)
-            train_task.status = Status.ERROR
-            train_task.error_detail = FailedTrainingException(error_log=error_msg).args[0]
+            training_task.status = TaskStatus.ERROR
+            training_task.error_detail = FailedTrainingException(error_log=error_msg).args[0]
         else:
             try:
                 training_summary = FileHandler.load_json(file_path=summary_path)
@@ -975,24 +687,26 @@ class Trainer(NetsPressoBase):
                 logger.error(f"Failed to load training summary: {e}")
                 error_msg = f"Failed to load training summary: {str(e)}"
                 training_summary = self._create_default_error_summary(error_msg)
-                train_task.status = Status.ERROR
-                train_task.error_detail = FailedTrainingException(error_log=error_msg).args[0]
-                return train_task
+                training_task.status = TaskStatus.ERROR
+                training_task.error_detail = FailedTrainingException(error_log=error_msg).args[0]
+                return training_task
 
         try:
-            train_task = self.create_performance(train_task, training_summary)
+            training_task = self.create_performance(db=db, training_task=training_task, training_summary=training_summary)
         except Exception as e:
             logger.error(f"Error creating performance record: {e}, {training_summary}")
-            train_task.status = Status.ERROR
-            train_task.error_detail = FailedTrainingException(error_log=f"Failed to create performance record: {str(e)}").args[0]
-            return train_task
+            training_task.status = TaskStatus.ERROR
+            training_task.error_detail = FailedTrainingException(error_log=f"Failed to create performance record: {str(e)}").args[0]
+            return training_task
 
-        train_task.status = self._get_status_by_training_summary(training_summary.get("status"))
-        if train_task.status == Status.ERROR:
+        training_task.status = self._get_status_by_training_summary(training_summary.get("status"))
+        if training_task.status == TaskStatus.ERROR:
             error_stats = training_summary.get("error_stats", "")
-            train_task.error_detail = FailedTrainingException(error_log=error_stats).args[0]
+            training_task.error_detail = FailedTrainingException(error_log=error_stats).args[0]
 
-        return train_task
+        training_task = training_task_repository.update(db=db, model=training_task)
+
+        return training_task
 
     def _create_default_error_summary(self, error_msg):
         """Create default error summary."""
@@ -1006,7 +720,7 @@ class Trainer(NetsPressoBase):
             "error_stats": error_msg
         }
 
-    def _upload_model_files(self, train_task, model, destination_folder, calibration_dataset):
+    def _upload_model_files(self, training_task: TrainingTask, destination_folder: Path, calibration_dataset: str):
         """Upload trained model files to storage."""
         try:
             pt_file, onnx_file = self.find_model_files(destination_folder)
@@ -1020,9 +734,10 @@ class Trainer(NetsPressoBase):
             if errors:
                 error_msg = f"Required model files missing after training: {', '.join(errors)}"
                 logger.error(error_msg)
-                self.update_task_status(task_id=train_task.task_id, status=Status.ERROR, error_message=FailedTrainingException(error_log=error_msg))
+                self.update_task_status(task_id=training_task.task_id, status=TaskStatus.ERROR, error_message=FailedTrainingException(error_log=error_msg))
                 return
 
+            model: Model = training_task.model
             self._upload_file_with_retry(
                 local_path=str(pt_file),
                 object_path=f"{model.object_path}/model.pt",
@@ -1045,7 +760,7 @@ class Trainer(NetsPressoBase):
         except Exception as e:
             error_msg = f"Failed to upload model files to Zenko: {e}"
             logger.error(error_msg)
-            self.update_task_status(task_id=train_task.task_id, status=Status.ERROR, error_message=FailedTrainingException(error_log=error_msg))
+            self.update_task_status(task_id=training_task.task_id, status=TaskStatus.ERROR, error_message=FailedTrainingException(error_log=error_msg))
 
     def _upload_file_with_retry(self, local_path, object_path, file_type, max_retries=3, retry_delay=5):
         """Execute file upload with retry mechanism."""
@@ -1054,7 +769,7 @@ class Trainer(NetsPressoBase):
         for attempt in range(max_retries):
             try:
                 storage_handler.upload_file_to_s3(
-                    bucket_name=BUCKET_NAME,
+                    bucket_name=settings.MODEL_BUCKET_NAME,
                     local_path=local_path,
                     object_path=object_path,
                 )
@@ -1074,9 +789,9 @@ class Trainer(NetsPressoBase):
             Dict[str, List[str]]: A dictionary mapping each task to its available models.
         """
         all_models = {
-            "classification": [model for model in CLASSIFICATION_MODELS if model not in self.deprecated_names],
-            "detection": [model for model in DETECTION_MODELS if model not in self.deprecated_names],
-            "segmentation": [model for model in SEGMENTATION_MODELS if model not in self.deprecated_names],
+            "classification": CLASSIFICATION_MODELS,
+            "detection": DETECTION_MODELS,
+            "segmentation": SEGMENTATION_MODELS,
         }
         return all_models
 
@@ -1120,102 +835,7 @@ class Trainer(NetsPressoBase):
 
         return pt_file, onnx_file
 
-    def download_dataset_for_training(
-        self,
-        dataset_uuid: str,
-        output_dir: str = "/datasets",
-        valid_split: float = 0.1,
-        random_seed: int = 0,
-        max_retries: int = 3,
-        retry_delay: int = 5,
-        verbose: bool = False,
-    ) -> str:
-        """
-        Download dataset from DataForge and set up dataset configuration for training.
-        If the dataset is already downloaded, it will use the existing files.
-
-        Args:
-            dataset_uuid: The UUID of the dataset to download
-            output_dir: Directory to save downloaded files
-            valid_split: Ratio of validation data to split from train data (0.0-1.0)
-            random_seed: Random seed for reproducible splitting
-            max_retries: Maximum number of retry attempts for network/storage errors
-            retry_delay: Delay in seconds between retry attempts (will increase with each retry)
-            verbose: Whether to log detailed progress for each file (default: False)
-
-        Returns:
-            str: Path to the configured dataset
-        """
-        try:
-            dataset_path = self.dataset_manager.download_dataset_for_training(
-                dataset_uuid=dataset_uuid,
-                output_dir=output_dir,
-                valid_split=valid_split,
-                random_seed=random_seed,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                verbose=verbose,
-            )
-            self.is_dataforge = True
-            logger.info(f"Downloaded dataset from DataForge: {dataset_path}")
-
-            return dataset_path
-
-        except Exception as e:
-            logger.error(f"Failed to download dataset for training: {str(e)}")
-            raise e
-
-    def download_dataset_for_evaluation(
-        self,
-        dataset_uuid: str,
-        output_dir: str = "/datasets",
-        split: str = Split.TEST,
-        max_retries: int = 3,
-        retry_delay: int = 5,
-        verbose: bool = False,
-    ) -> str:
-        """
-        Download dataset from DataForge for evaluation purposes
-
-        Args:
-            dataset_uuid: The UUID of the dataset to download
-            output_dir: Directory to save downloaded files
-            split: Dataset split to download (default: TEST)
-            max_retries: Maximum number of retry attempts for network/storage errors
-            retry_delay: Delay in seconds between retry attempts (will increase with each retry)
-            verbose: Whether to log detailed progress for each file (default: False)
-
-        Returns:
-            str: Path to the configured evaluation dataset
-        """
-        try:
-            dataset_path = self.dataset_manager.download_dataset_for_evaluation(
-                dataset_uuid=dataset_uuid,
-                output_dir=output_dir,
-                split=split,
-                max_retries=max_retries,
-                retry_delay=retry_delay,
-                verbose=verbose,
-            )
-            logger.info(f"Downloaded dataset from DataForge: {dataset_path}")
-
-            return dataset_path
-
-        except Exception as e:
-            logger.error(f"Failed to download dataset for evaluation: {str(e)}")
-            raise e
-
-    def get_dataset_version_from_storage(self, dataset_uuid: str, split: Split) -> DatasetVersionInfo:
-        dataset_version = self.dataset_manager.get_dataset_version_from_dataforge(dataset_uuid=dataset_uuid, split=split)
-
-        return dataset_version
-
-    def get_dataset_info_from_storage(self, project_id: str, dataset_uuid: str, split: Split) -> DatasetPayload:
-        dataset_info = self.dataset_manager.get_dataset_info_from_dataforge(project_id=project_id, dataset_uuid=dataset_uuid, split=split)
-
-        return dataset_info
-
-    def prepare_calibration_dataset(self, dataset_path, num_dataset: int = 100) -> str:
+    def prepare_calibration_dataset(self, dataset_path: str, num_dataset: int = 100) -> str:
         """Create a calibration dataset."""
         logger.info("Creating calibration dataset")
 
