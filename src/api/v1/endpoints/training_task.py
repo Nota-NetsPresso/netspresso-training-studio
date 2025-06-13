@@ -50,14 +50,20 @@ def get_supported_schedulers() -> SupportedSchedulersResponse:
 
 
 @router.post("/trainings", response_model=TrainingCreateResponse, status_code=201)
-def create_training_task(
+def start_training_task(
     request_body: TrainingCreate,
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> TrainingCreateResponse:
     training_task = training_task_service.create_training_task(db=db, training_in=request_body, token=token.access_token)
+    training_task_payload = training_task_service.start_training_task(
+        db=db,
+        training_in=request_body,
+        training_task=training_task,
+        token=token.access_token,
+    )
 
-    return TrainingCreateResponse(data=training_task)
+    return TrainingCreateResponse(data=training_task_payload)
 
 
 @router.get("/trainings/{task_id}", response_model=TrainingResponse)
