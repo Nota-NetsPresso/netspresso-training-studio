@@ -24,6 +24,7 @@ from src.enums.model import ModelType
 from src.enums.task import TaskStatus
 from src.enums.training import MODEL_DISPLAY_MAP, MODEL_GROUP_MAP, StorageLocation, TrainingType
 from src.models.base import generate_uuid
+from src.models.model import Model
 from src.models.training import Augmentation, Dataset, Environment, Hyperparameter, TrainingTask
 from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor, Transform
 from src.modules.trainer.models import get_all_available_models
@@ -34,7 +35,6 @@ from src.modules.trainer.schedulers.schedulers import get_supported_schedulers
 from src.repositories.compression import compression_task_repository
 from src.repositories.model import model_repository
 from src.repositories.training import training_task_repository
-from src.services.model import model_service
 from src.services.user import user_service
 from src.worker.training_task import train_model
 
@@ -151,6 +151,54 @@ class TrainingTaskService:
 
         return train_dataset
 
+    def _generate_unique_model_name(self, db: Session, project_id: str, name: str) -> str:
+        """Generate a unique model name by adding numbering if necessary.
+
+        Args:
+            db (Session): Database session
+            project_id (str): Project ID to check existing models
+            name (str): Original model name
+
+        Returns:
+            str: Unique model name with numbering if needed
+        """
+        # Get existing model names from the database for the same project
+        models = model_repository.get_all_by_project_id(
+            db=db,
+            project_id=project_id,
+        )
+
+        # Extract existing names from models and count occurrences of base name
+        base_name_count = sum(1 for model in models if model.type == ModelType.TRAINED_MODEL and model.name.startswith(name))
+
+        # If no models with this name exist, return original name
+        if base_name_count == 0:
+            return name
+
+        # If models exist, return name with count
+        return f"{name} ({base_name_count})"
+
+    def create_trained_model(self, db: Session, model_name: str, user_id: str, project_id: str) -> Model:
+        model_id = generate_uuid(entity="model")
+        base_object_path = f"{user_id}/{project_id}/{model_id}"
+        model_name = self._generate_unique_model_name(
+            db=db,
+            project_id=project_id,
+            name=model_name,
+        )
+        model_obj = Model(
+            model_id=model_id,
+            name=model_name,
+            type=ModelType.TRAINED_MODEL,
+            is_retrainable=True,
+            project_id=project_id,
+            user_id=user_id,
+            object_path=base_object_path  # Store base path only
+        )
+        model_obj = model_repository.save(db=db, model=model_obj)
+
+        return model_obj
+
     def create_training_task(self, db: Session, training_in: TrainingCreate, token: str) -> TrainingTask:
         """Create a new training task.
 
@@ -165,7 +213,7 @@ class TrainingTaskService:
         user_info = user_service.get_user_info(token=token)
 
         # Create trained model object
-        model_obj = model_service.create_trained_model(
+        model_obj = self.create_trained_model(
             db=db,
             model_name=training_in.name,
             user_id=user_info.user_id,
