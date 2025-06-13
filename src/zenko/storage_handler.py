@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 from fastapi import HTTPException
 from loguru import logger
 
-from app.configs.settings import settings
+from src.configs.settings import settings
 
 
 class ObjectStorageHandler:
