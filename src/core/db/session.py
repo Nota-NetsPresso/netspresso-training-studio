@@ -50,3 +50,5 @@ def get_db_session():
         raise e
     finally:
         db.close()
+
+init_db()
