@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 import cv2
 import numpy as np
 from loguru import logger
+from sqlalchemy.orm import Session
 
 from src.configs.settings import settings
 from src.core.db.session import get_db_session
@@ -692,7 +693,7 @@ class Trainer:
                 return training_task
 
         try:
-            training_task = self.create_performance(db=db, training_task=training_task, training_summary=training_summary)
+            training_task = self.create_performance(training_task=training_task, training_summary=training_summary)
         except Exception as e:
             logger.error(f"Error creating performance record: {e}, {training_summary}")
             training_task.status = TaskStatus.ERROR
