@@ -5,22 +5,22 @@ from typing import List
 
 from celery import chain, signature
 
-from app.api.v1.schemas.task.train.dataset import DatasetCreate
-from app.api.v1.schemas.task.train.environment import EnvironmentCreate
-from app.api.v1.schemas.task.train.hyperparameter import HyperparameterCreate
-from app.api.v1.schemas.task.train.train_task import TrainingCreate
-from app.worker.celery_app import celery_app
 from netspresso import NetsPresso
-from netspresso.enums.metadata import Status
-from netspresso.enums.train import StorageLocation
 from netspresso.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
 from netspresso.trainer.optimizers.optimizer_manager import OptimizerManager
 from netspresso.trainer.schedulers.scheduler_manager import SchedulerManager
 from netspresso.trainer.storage.dataforge import Split
-from netspresso.utils.db.models.base import generate_uuid
-from netspresso.utils.db.repositories.conversion import conversion_task_repository
-from netspresso.utils.db.repositories.evaluation import evaluation_dataset_repository
 from netspresso.utils.db.session import SessionLocal
+from src.api.v1.schemas.tasks.dataset import DatasetCreate
+from src.api.v1.schemas.tasks.environment import EnvironmentCreate
+from src.api.v1.schemas.tasks.hyperparameter import HyperparameterCreate
+from src.api.v1.schemas.tasks.training_task import TrainingCreate
+from src.enums.task import TaskStatus
+from src.enums.training import StorageLocation
+from src.models.base import generate_uuid
+from src.repositories.conversion import conversion_task_repository
+from src.repositories.evaluation import evaluation_dataset_repository
+from src.worker.celery_app import celery_app
 
 POLLING_INTERVAL = 30  # seconds
 logger = logging.getLogger(__name__)
@@ -260,7 +260,7 @@ def poll_and_start_evaluation(
     try:
         conversion_task = conversion_task_repository.get_by_task_id(db=session, task_id=conversion_task_id)
 
-        if conversion_task.status == Status.COMPLETED:
+        if conversion_task.status == TaskStatus.COMPLETED:
             model_id = conversion_task.model_id
             logger.info(f"Conversion completed successfully. Model ID: {model_id}")
 
@@ -284,7 +284,7 @@ def poll_and_start_evaluation(
             logger.info(f"Started evaluation task with ID: {evaluation_task_id}")
             return evaluation_task_id
 
-        elif conversion_task.status in [Status.STOPPED, Status.ERROR]:
+        elif conversion_task.status in [TaskStatus.STOPPED, TaskStatus.ERROR]:
             error_message = conversion_task.error_detail
             logger.error(f"Conversion failed: {error_message}")
             raise Exception(f"Conversion failed: {error_message}")

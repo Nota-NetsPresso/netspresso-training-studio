@@ -262,53 +262,5 @@ class ModelService:
                 detail=f"Failed to generate download URL: {str(e)}"
             )
 
-    def _generate_unique_model_name(self, db: Session, project_id: str, name: str) -> str:
-        """Generate a unique model name by adding numbering if necessary.
-
-        Args:
-            db (Session): Database session
-            project_id (str): Project ID to check existing models
-            name (str): Original model name
-
-        Returns:
-            str: Unique model name with numbering if needed
-        """
-        # Get existing model names from the database for the same project
-        models = model_repository.get_all_by_project_id(
-            db=db,
-            project_id=project_id,
-        )
-
-        # Extract existing names from models and count occurrences of base name
-        base_name_count = sum(1 for model in models if model.type == ModelType.TRAINED_MODEL and model.name.startswith(name))
-
-        # If no models with this name exist, return original name
-        if base_name_count == 0:
-            return name
-
-        # If models exist, return name with count
-        return f"{name} ({base_name_count})"
-
-    def create_trained_model(self, db: Session, model_name: str, user_id: str, project_id: str) -> Model:
-        model_id = generate_uuid(entity="model")
-        base_object_path = f"{user_id}/{project_id}/{model_id}"
-        model_name = self._generate_unique_model_name(
-            db=db,
-            project_id=project_id,
-            name=model_name,
-        )
-        model_obj = Model(
-            model_id=model_id,
-            name=model_name,
-            type=ModelType.TRAINED_MODEL,
-            is_retrainable=True,
-            project_id=project_id,
-            user_id=user_id,
-            object_path=base_object_path  # Store base path only
-        )
-        model_obj = model_repository.save(db=db, model=model_obj)
-
-        return model_obj
-
 
 model_service = ModelService()
