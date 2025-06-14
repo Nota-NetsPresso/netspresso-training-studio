@@ -342,9 +342,16 @@ def train_model(
         # Initialize NetsPresso
         trainer = Trainer(task=training_in.task)
 
+        training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
+
         # Configure model and training parameters
         logger.info(f"Configuring model and training parameters for task_id: {training_task_id}")
         configure_model_and_training(trainer, training_in, input_model_info)
+
+        trainer.set_dataset(
+            dataset_root_path=training_task.dataset.path,
+            dataset_name=training_task.dataset.name,
+        )
 
         # Execute training
         logger.info(f"Starting training with task_id: {training_task_id}")
