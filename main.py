@@ -10,7 +10,7 @@ from src.core.db.session import init_db
 
 
 def init_routers(app: FastAPI) -> None:
-    app.include_router(api_router)
+    app.include_router(api_router, prefix=settings.API_PREFIX)
 
 
 def make_middleware() -> list[Middleware]:
