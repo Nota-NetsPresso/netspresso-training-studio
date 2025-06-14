@@ -1,7 +1,8 @@
 from dataclasses import asdict
 
-from netspresso.clients.launcher.v2.interfaces import TaskInterface
-from netspresso.clients.launcher.v2.schemas import (
+from src.clients.enums.task import LauncherTask
+from src.clients.launcher.v2.interfaces import TaskInterface
+from src.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     RequestBenchmark,
     ResponseBenchmarkFrameworkOptionItems,
@@ -10,8 +11,7 @@ from netspresso.clients.launcher.v2.schemas import (
     ResponseBenchmarkTaskItem,
     UploadFile,
 )
-from netspresso.clients.utils.requester import Requester
-from netspresso.enums import LauncherTask
+from src.clients.utils.requester import Requester
 
 
 class BenchmarkTaskAPI(TaskInterface):

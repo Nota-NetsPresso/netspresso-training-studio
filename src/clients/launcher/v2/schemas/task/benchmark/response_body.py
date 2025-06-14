@@ -2,7 +2,8 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from netspresso.clients.launcher.v2.schemas import (
+from src.clients.enums.task import TaskStatusForDisplay
+from src.clients.launcher.v2.schemas import (
     InputLayer,
     ModelOption,
     ResponseItem,
@@ -10,10 +11,10 @@ from netspresso.clients.launcher.v2.schemas import (
     TaskInfo,
     TaskOption,
 )
-from netspresso.clients.launcher.v2.schemas.task.common import TaskStatusInfo
-from netspresso.enums import Framework, TaskStatusForDisplay
-from netspresso.metadata import benchmarker
-from netspresso.metadata.benchmarker import BenchmarkTaskInfo
+from src.clients.launcher.v2.schemas.task.common import TaskStatusInfo
+from src.clients.metadata import benchmarker
+from src.clients.metadata.benchmarker import BenchmarkTaskInfo
+from src.enums.model import Framework
 
 
 @dataclass

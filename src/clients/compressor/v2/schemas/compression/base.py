@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from netspresso.enums.compression import GroupPolicy, LayerNorm, Policy, StepOp
-from netspresso.exceptions.compressor import NotValidChannelAxisRangeException
+from src.enums.compression import GroupPolicy, LayerNorm, Policy, StepOp
+from src.exceptions.compressor import NotValidChannelAxisRangeException
 
 
 @dataclass

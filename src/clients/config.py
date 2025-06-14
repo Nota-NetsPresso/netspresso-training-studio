@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
-from netspresso.enums import EndPointProperty, EnvironmentType, ServiceModule, ServiceName
+from src.enums.config import EndPointProperty, EnvironmentType, ServiceModule, ServiceName
 
 BASE_DIR = Path(__file__).resolve().parent
 config_parser = configparser.ConfigParser()
@@ -25,11 +25,7 @@ class Config:
         if dotenv_path:
             load_dotenv(dotenv_path)
 
-        if self.SERVICE_NAME == ServiceName.TAO:
-            self.HOST = config_parser[ServiceName.TAO][EndPointProperty.HOST]
-            self.PORT = int(config_parser[ServiceName.TAO][EndPointProperty.PORT])
-            self.URI_PREFIX = config_parser[f"TAO.{self.MODULE}"][EndPointProperty.URI_PREFIX]
-        elif self.SERVICE_NAME == ServiceName.DATAFORGE:
+        if self.SERVICE_NAME == ServiceName.DATAFORGE:
             self.HOST = os.environ.get("DATAFORGE_HOST")
             self.PORT = int(os.environ.get("DATAFORGE_PORT"))
             self.URI_PREFIX = os.environ.get("DATAFORGE_URI_PREFIX")

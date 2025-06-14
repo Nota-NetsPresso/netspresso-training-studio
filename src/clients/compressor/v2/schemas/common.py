@@ -2,10 +2,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Union
 
-from netspresso.enums.device import HardwareType, SoftwareVersion, SoftwareVersionDisplay
-from netspresso.enums.model import DataType, Framework
-from netspresso.metadata import common
-from netspresso.metadata.common import AvailableOption
+from src.clients.metadata import common
+from src.clients.metadata.common import AvailableOption
+from src.enums.device import HardwareType, SoftwareVersion, SoftwareVersionDisplay
+from src.enums.model import DataType, Framework
 
 
 class Order(str, Enum):

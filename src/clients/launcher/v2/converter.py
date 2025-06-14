@@ -2,8 +2,9 @@ import os
 
 from loguru import logger
 
-from netspresso.clients.launcher.v2.implements import ConvertTaskAPI, ModelAPI
-from netspresso.clients.launcher.v2.schemas import (
+from src.clients.enums.task import LauncherTask
+from src.clients.launcher.v2.implements import ConvertTaskAPI, ModelAPI
+from src.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     InputLayer,
     RequestConvert,
@@ -21,8 +22,9 @@ from netspresso.clients.launcher.v2.schemas import (
     UploadDataset,
     UploadFile,
 )
-from netspresso.clients.utils.common import read_file_bytes
-from netspresso.enums import DataType, DeviceName, Framework, LauncherTask, SoftwareVersion
+from src.clients.utils.common import read_file_bytes
+from src.enums.device import DeviceName, SoftwareVersion
+from src.enums.model import DataType, Framework
 
 
 class Converter:

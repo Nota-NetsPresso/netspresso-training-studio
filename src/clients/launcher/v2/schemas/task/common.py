@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from netspresso.enums import TaskStatusForDisplay
+from src.clients.enums.task import TaskStatusForDisplay
 
 
 @dataclass

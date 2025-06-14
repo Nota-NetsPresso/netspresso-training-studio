@@ -2,14 +2,14 @@ from dataclasses import asdict
 
 from loguru import logger
 
-from netspresso.clients.auth import response_body
-from netspresso.clients.auth.request_body import LoginRequest
-from netspresso.clients.auth.v2.schemas.auth import TokenRefreshRequest
-from netspresso.clients.auth.v2.schemas.credit import SummarizedCreditResponse
-from netspresso.clients.auth.v2.schemas.token import TokenResponse
-from netspresso.clients.auth.v2.schemas.user import UserResponse
-from netspresso.clients.config import Config
-from netspresso.clients.utils.requester import Requester
+from src.clients.auth import response_body
+from src.clients.auth.request_body import LoginRequest
+from src.clients.auth.v2.schemas.auth import TokenRefreshRequest
+from src.clients.auth.v2.schemas.credit import SummarizedCreditResponse
+from src.clients.auth.v2.schemas.token import TokenResponse
+from src.clients.auth.v2.schemas.user import UserResponse
+from src.clients.config import Config
+from src.clients.utils.requester import Requester
 
 
 class AuthClientV2:

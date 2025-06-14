@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from netspresso.clients.compressor.v2.schemas.compression.base import Layer, Options, RecommendationOptions
-from netspresso.enums.compression import CompressionMethod, RecommendationMethod
-from netspresso.exceptions.compressor import (
+from src.clients.compressor.v2.schemas.compression.base import Layer, Options, RecommendationOptions
+from src.enums.compression import CompressionMethod, RecommendationMethod
+from src.exceptions.compressor import (
     EmptyCompressionParamsException,
     NotValidSlampRatioException,
     NotValidVbmfRatioException,
