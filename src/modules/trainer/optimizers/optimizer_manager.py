@@ -1,10 +1,11 @@
 from netspresso.enums.train import Optimizer
 from netspresso.trainer.optimizers.optimizers import SGD, Adadelta, Adagrad, Adam, Adamax, AdamW, RMSprop
+from src.modules.trainer.optimizers.optimizers import BaseOptimizer
 
 
 class OptimizerManager:
     @staticmethod
-    def get_optimizer(name: str, lr: float):
+    def get_optimizer(name: str, lr: float) -> BaseOptimizer:
         optimizer_map = {
             Optimizer.ADADELTA: Adadelta,
             Optimizer.ADAGRAD: Adagrad,

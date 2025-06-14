@@ -10,6 +10,8 @@ from src.enums.model import ModelType
 from src.enums.task import RetrievalTaskType, TaskStatus
 from src.exceptions.auth import UnauthorizedUserAccessException
 from src.exceptions.model import ModelCannotBeDeletedException
+from src.models.base import generate_uuid
+from src.models.model import Model
 from src.repositories.model import model_repository
 from src.services.benchmark_task import benchmark_task_service
 from src.services.compression_task import compression_task_service

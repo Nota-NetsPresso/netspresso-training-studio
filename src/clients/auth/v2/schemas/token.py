@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from netspresso.clients.auth import response_body
-from netspresso.clients.auth.v2.schemas.common import AbstractResponse
+from src.clients.auth import response_body
+from src.clients.auth.v2.schemas.common import AbstractResponse
 
 
 @dataclass

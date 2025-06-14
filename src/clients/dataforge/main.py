@@ -1,12 +1,12 @@
-from netspresso.clients.config import Config, ServiceModule, ServiceName
-from netspresso.clients.dataforge.schemas.response_body import (
+from src.clients.config import Config, ServiceModule, ServiceName
+from src.clients.dataforge.schemas.response_body import (
     DatasetResponse,
     DatasetsResponse,
     DatasetVersionResponse,
     DatasetVersionsResponse,
 )
-from netspresso.clients.utils.common import get_headers
-from netspresso.clients.utils.requester import Requester
+from src.clients.utils.common import get_headers
+from src.clients.utils.requester import Requester
 
 
 class DataForgeClient:

@@ -208,3 +208,8 @@ MODEL_GROUP_MAP = {
     PretrainedModel.YOLOV9_M: PretrainedModelGroup.YOLOV9,
     PretrainedModel.YOLOV9_C: PretrainedModelGroup.YOLOV9,
 }
+
+
+class TrainingType(str, Enum):
+    TRAINING = "training"
+    RETRAINING = "retraining"

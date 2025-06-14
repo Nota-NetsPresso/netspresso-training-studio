@@ -2,8 +2,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 
-from netspresso.clients.launcher.v2.schemas import InputLayer
-from netspresso.enums import DataType, DeviceName, Framework, SoftwareVersion
+from src.clients.launcher.v2.schemas import InputLayer
+from src.enums.device import DeviceName, SoftwareVersion
+from src.enums.model import DataType, Framework
 
 
 @dataclass

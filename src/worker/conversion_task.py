@@ -1,7 +1,7 @@
 from celery import chain
 
-from app.worker.celery_app import celery_app
-from netspresso import NetsPresso
+from src.clients.launcher.v2.main import launcher_client_v2
+from src.worker.celery_app import celery_app
 
 POLLING_INTERVAL = 30  # seconds
 

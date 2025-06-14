@@ -6,17 +6,17 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.device import (
+from src.api.v1.schemas.tasks.conversion_task import (
+    TargetFrameworkPayload,
+)
+from src.api.v1.schemas.tasks.device import (
     HardwareTypePayload,
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
     SupportedDevicePayload,
     SupportedDeviceResponse,
 )
-from app.api.v1.schemas.task.conversion.conversion_task import (
-    TargetFrameworkPayload,
-)
-from app.api.v1.schemas.task.evaluation.evaluation_task import (
+from src.api.v1.schemas.tasks.evaluation_task import (
     BoundingBox,
     EvaluationCreate,
     EvaluationPayload,
@@ -24,22 +24,25 @@ from app.api.v1.schemas.task.evaluation.evaluation_task import (
     ImagePrediction,
     PredictionForThreshold,
 )
-from app.exceptions.evaluation import EvaluationTaskAlreadyExistsException
-from app.services.project import project_service
-from app.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
-from app.zenko.storage_handler import ObjectStorageHandler
-from netspresso.clients.launcher.v2.schemas.common import DeviceInfo
-from netspresso.enums import DataType, DeviceName, SoftwareVersion, Status
-from netspresso.enums.conversion import EvaluationTargetFramework, SourceFramework, TargetFramework
-from netspresso.evaluator.evaluator import EVALUATION_BUCKET_NAME
-from netspresso.exceptions.conversion import ConversionTaskNotFoundException
-from netspresso.netspresso import NetsPresso
-from netspresso.utils.db.models.conversion import ConversionTask
-from netspresso.utils.db.models.evaluation import EvaluationDataset, EvaluationTask
-from netspresso.utils.db.repositories.conversion import conversion_task_repository
-from netspresso.utils.db.repositories.evaluation import evaluation_task_repository
-from netspresso.utils.db.repositories.model import model_repository
-from netspresso.utils.file import FileHandler
+from src.clients.launcher.v2.schemas.common import DeviceInfo
+from src.configs.settings import settings
+from src.enums.conversion import EvaluationTargetFramework, SourceFramework, TargetFramework
+from src.enums.device import DeviceName, SoftwareVersion
+from src.enums.model import DataType
+from src.enums.sort import Order, TimeSort
+from src.enums.task import TaskStatus
+from src.exceptions.conversion import ConversionTaskNotFoundException
+from src.exceptions.evaluation import EvaluationTaskAlreadyExistsException
+from src.models.conversion import ConversionTask
+from src.models.evaluation import EvaluationDataset, EvaluationTask
+from src.repositories.conversion import conversion_task_repository
+from src.repositories.evaluation import evaluation_task_repository
+from src.repositories.model import model_repository
+from src.services.project import project_service
+from src.services.user import user_service
+from src.utils.file import FileHandler
+from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
+from src.zenko.storage_handler import ObjectStorageHandler
 
 storage_handler = ObjectStorageHandler()
 
@@ -131,7 +134,7 @@ class EvaluationTaskService:
                 task.device_name == target_device_name and
                 task.precision == target_data_type and
                 (target_software_version is None or task.software_version == target_software_version) and
-                task.status == Status.COMPLETED):
+                task.status == TaskStatus.COMPLETED):
                 return task
 
         raise ConversionTaskNotFoundException()
@@ -145,13 +148,13 @@ class EvaluationTaskService:
         )
 
         if evaluation_task:
-            if evaluation_task.status == Status.COMPLETED:
+            if evaluation_task.status == TaskStatus.COMPLETED:
                 logger.warning(f"Evaluation task already completed: {evaluation_task.task_id}")
-                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, task_status=Status.COMPLETED.value)
-            elif evaluation_task.status == Status.IN_PROGRESS:
+                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, task_status=TaskStatus.COMPLETED.value)
+            elif evaluation_task.status == TaskStatus.IN_PROGRESS:
                 logger.warning(f"Evaluation task already in progress: {evaluation_task.task_id}")
-                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, task_status=Status.IN_PROGRESS.value)
-            elif evaluation_task.status == Status.ERROR:
+                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, task_status=TaskStatus.IN_PROGRESS.value)
+            elif evaluation_task.status == TaskStatus.ERROR:
                 logger.info(f"Retrying failed evaluation task: {evaluation_task.task_id}")
             else:
                 # Other status (NOT_STARTED, STOPPED, etc.)
@@ -291,14 +294,13 @@ class EvaluationTaskService:
     def get_evaluation_tasks(
         self,
         db: Session,
-        api_key: str,
+        token: str,
         model_id: str,
     ) -> List[EvaluationPayload]:
-        netspresso = NetsPresso(api_key=api_key)
-        evaluator = netspresso.evaluator()
-        evaluation_tasks = evaluator.get_evaluation_tasks(
+        user_info = user_service.get_user_info(token=token)
+        evaluation_tasks = evaluation_task_repository.get_all_by_user_id_and_model_id(
             db=db,
-            user_id=netspresso.user_info.user_id,
+            user_id=user_info.user_id,
             model_id=model_id
         )
 
@@ -388,7 +390,7 @@ class EvaluationTaskService:
         # Get list of image files from result_images directory
         result_images_prefix = f"{user_id}/{task_id}/result_images/"
         image_objects = storage_handler.list_objects(
-            bucket_name=EVALUATION_BUCKET_NAME,
+            bucket_name=settings.EVALUATION_BUCKET_NAME,
             prefix=result_images_prefix
         )
 
@@ -403,7 +405,7 @@ class EvaluationTaskService:
 
             # Create presigned URL
             presigned_url = storage_handler.get_download_presigned_url(
-                bucket_name=EVALUATION_BUCKET_NAME,
+                bucket_name=settings.EVALUATION_BUCKET_NAME,
                 object_path=image_path,
                 download_name=image_filename,
                 expires_in=3600  # 1 hour
@@ -471,7 +473,7 @@ class EvaluationTaskService:
 
         try:
             storage_handler.download_file_from_s3(
-                bucket_name=EVALUATION_BUCKET_NAME,
+                bucket_name=settings.EVALUATION_BUCKET_NAME,
                 object_path=predictions_object_path,
                 local_path=predictions_local_path.as_posix()
             )
@@ -640,6 +642,37 @@ class EvaluationTaskService:
         evaluation_task_repository.soft_delete(db=db, model=evaluation_task)
 
         return EvaluationPayload.model_validate(evaluation_task)
+
+    def _get_evaluation_info(self, db: Session, model_id: str) -> tuple[Optional[str], List[str]]:
+        """Get evaluation task information
+
+        Args:
+            db: Database session
+            model_id: Model ID
+
+        Returns:
+            tuple: (latest_status, task_ids)
+        """
+        evaluation_tasks = evaluation_task_repository.get_all_by_model_id(
+            db=db,
+            model_id=model_id,
+            order=Order.DESC,
+            time_sort=TimeSort.CREATED_AT,
+        )
+        if not evaluation_tasks:
+            return None, []
+
+        task_ids = [task.task_id for task in evaluation_tasks]
+
+        evaluation_task = evaluation_task_repository.get_latest_evaluation_task(
+            db=db,
+            model_id=model_id,
+            order=Order.DESC,
+            time_sort=TimeSort.UPDATED_AT,
+        )
+        latest_status = evaluation_task.status
+
+        return latest_status, task_ids
 
 
 evaluation_task_service = EvaluationTaskService()

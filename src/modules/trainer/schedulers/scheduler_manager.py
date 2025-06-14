@@ -6,11 +6,12 @@ from netspresso.trainer.schedulers.schedulers import (
     PolynomialLRWithWarmUp,
     StepLR,
 )
+from src.modules.trainer.schedulers.schedulers import BaseScheduler
 
 
 class SchedulerManager:
     @staticmethod
-    def get_scheduler(name: str):
+    def get_scheduler(name: str) -> BaseScheduler:
         scheduler_map = {
             Scheduler.STEP_LR: StepLR,
             Scheduler.POLYNOMIAL_LR: PolynomialLRWithWarmUp,

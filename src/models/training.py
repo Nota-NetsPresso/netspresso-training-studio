@@ -73,8 +73,8 @@ class Dataset(BaseModel):
     palette = Column(JSON, nullable=True)
     task_type = Column(String(30), nullable=False)
     mime_type = Column(String(30), default="image")
-    class_count = Column(Integer, nullable=False)
-    count = Column(Integer, nullable=False)
+    class_count = Column(Integer, default=0, nullable=True)
+    count = Column(Integer, default=0, nullable=True)
 
     valid_split_ratio = Column(Float, default=0.1)
     random_seed = Column(Integer, default=0)

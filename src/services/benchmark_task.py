@@ -1,10 +1,17 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.device import (
+from src.api.v1.schemas.tasks.benchmark_task import (
+    BenchmarkCreate,
+    BenchmarkCreatePayload,
+    BenchmarkPayload,
+    BenchmarkResponse,
+    TargetFrameworkPayload,
+)
+from src.api.v1.schemas.tasks.device import (
     BenchmarkResultPayload,
     HardwareTypePayload,
     PrecisionForBenchmarkPayload,
@@ -12,28 +19,19 @@ from app.api.v1.schemas.device import (
     SupportedDeviceForBenchmarkPayload,
     TargetDevicePayload,
 )
-from app.api.v1.schemas.task.benchmark.benchmark_task import (
-    BenchmarkCreate,
-    BenchmarkCreatePayload,
-    BenchmarkPayload,
-    BenchmarkResponse,
-    TargetFrameworkPayload,
-)
-from app.services.conversion_task import conversion_task_service
-from app.services.project import project_service
-from app.worker.benchmark_task import benchmark_model
-from netspresso.clients.launcher.v2.schemas.common import DeviceInfo
-from netspresso.enums.metadata import Status
-from netspresso.enums.model import Framework
-from netspresso.enums.project import SubFolder
-from netspresso.enums.task import TaskStatusForDisplay
-from netspresso.netspresso import NetsPresso
-from netspresso.utils.db.models.base import generate_uuid
-from netspresso.utils.db.models.benchmark import BenchmarkTask
-from netspresso.utils.db.repositories.base import Order, TimeSort
-from netspresso.utils.db.repositories.benchmark import benchmark_task_repository
-from netspresso.utils.db.repositories.conversion import conversion_task_repository
-from netspresso.utils.db.repositories.model import model_repository
+from src.clients.enums.task import TaskStatusForDisplay
+from src.clients.launcher.v2.schemas.common import DeviceInfo
+from src.enums.model import Framework, ModelType
+from src.enums.task import TaskStatus
+from src.models.base import generate_uuid
+from src.models.benchmark import BenchmarkTask
+from src.repositories.base import Order, TimeSort
+from src.repositories.benchmark import benchmark_task_repository
+from src.repositories.conversion import conversion_task_repository
+from src.repositories.model import model_repository
+from src.services.conversion_task import conversion_task_service
+from src.services.project import project_service
+from src.worker.benchmark_task import benchmark_model
 
 
 class BenchmarkTaskService:
@@ -147,7 +145,7 @@ class BenchmarkTaskService:
 
             if is_same_options and is_same_software_version:
                 # If task is in NOT_STARTED, IN_PROGRESS, or COMPLETED state, return it
-                reusable_states = [Status.NOT_STARTED, Status.IN_PROGRESS, Status.COMPLETED]
+                reusable_states = [TaskStatus.NOT_STARTED, TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED]
                 if task.status in reusable_states:
                     logger.info(f"Returning existing benchmark task with status {task.status}: {task.task_id}")
                     return BenchmarkCreatePayload(task_id=task.task_id)
@@ -184,9 +182,9 @@ class BenchmarkTaskService:
 
         return self._create_benchmark_payload(benchmark_task)
 
-    def get_benchmark_tasks(self, db: Session, model_id: str, api_key: str) -> List[BenchmarkPayload]:
+    def get_benchmark_tasks(self, db: Session, model_id: str, token: str) -> List[BenchmarkPayload]:
         """Get benchmark tasks for a model"""
-        conversion_tasks = conversion_task_service.get_conversion_tasks(db, model_id, api_key)
+        conversion_tasks = conversion_task_service.get_conversion_tasks(db, model_id, token)
 
         if not conversion_tasks:
             return []
@@ -210,7 +208,7 @@ class BenchmarkTaskService:
         launcher_status = benchmarker.cancel_benchmark_task(benchmark_task.benchmark_task_id)
 
         if launcher_status.status == TaskStatusForDisplay.USER_CANCEL:
-            benchmark_task.status = Status.STOPPED
+            benchmark_task.status = TaskStatus.STOPPED
             benchmark_task = benchmark_task_repository.save(db, benchmark_task)
         else:
             raise ValueError(f"Failed to cancel benchmark task: {launcher_status.status}")
@@ -227,6 +225,40 @@ class BenchmarkTaskService:
         model = model_repository.soft_delete(db=db, model=model)
 
         return self._create_benchmark_payload(benchmark_task)
+
+    def _get_benchmark_info(self, db: Session, converted_model_ids: List[str]) -> tuple[Optional[str], List[str]]:
+        """Get benchmark task information
+
+        Args:
+            db: Database session
+            converted_model_ids: List of converted model IDs
+
+        Returns:
+            tuple: (latest_status, task_ids)
+        """
+        if not converted_model_ids:
+            return None, []
+
+        benchmark_tasks = benchmark_task_repository.get_all_by_converted_models(
+            db=db,
+            converted_model_ids=converted_model_ids,
+            order=Order.DESC,
+            time_sort=TimeSort.CREATED_AT,
+        )
+        if not benchmark_tasks:
+            return None, []
+
+        task_ids = [task.task_id for task in benchmark_tasks]
+
+        benchmark_task = benchmark_task_repository.get_latest_benchmark_task(
+            db=db,
+            converted_model_ids=converted_model_ids,
+            order=Order.DESC,
+            time_sort=TimeSort.UPDATED_AT,
+        )
+        latest_status = benchmark_task.status
+
+        return latest_status, task_ids
 
 
 benchmark_task_service = BenchmarkTaskService()

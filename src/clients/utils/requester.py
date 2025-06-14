@@ -3,7 +3,7 @@ from typing import Optional
 import requests
 from requests import Response
 
-from netspresso.exceptions.common import GatewayTimeoutException, InternalServerErrorException, UnexpetedException
+from src.exceptions.common import GatewayTimeoutException, InternalServerErrorException, UnexpetedException
 
 
 class Requester:

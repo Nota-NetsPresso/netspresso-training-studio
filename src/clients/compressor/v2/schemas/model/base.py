@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from netspresso.metadata.common import InputShape, ModelInfo
+from src.metadata.common import InputShape, ModelInfo
 
 
 @dataclass
