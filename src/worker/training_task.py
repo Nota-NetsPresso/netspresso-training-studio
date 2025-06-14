@@ -225,13 +225,11 @@ def get_model_paths(training_task_id: str) -> Optional[Tuple[Path, Path]]:
     Returns:
         Tuple containing (input_model_path, output_dir) or None if unsuccessful
     """
-    with get_db_context() as db:
+    with get_db_session() as db:
         training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
         model_info = model_repository.get_by_model_id(db=db, model_id=training_task.model_id)
-        project = project_repository.get_by_project_id(db=db, project_id=model_info.project_id)
 
-        project_abs_path = Path(project.project_abs_path)
-        input_model_dir = project_abs_path / model_info.object_path
+        input_model_dir = Path(model_info.object_path)
         input_model_path = input_model_dir / "model.onnx"
         output_dir = input_model_dir / "converted"
 
@@ -246,13 +244,11 @@ def get_model_paths(training_task_id: str) -> Optional[Tuple[Path, Path]]:
             input_model_dir.mkdir(parents=True, exist_ok=True)
 
             # Set object path (storage path can be extracted from model_info.object_path)
-            object_path = f"{model_info.object_path}/model.onnx"
-
             try:
                 # Download file from storage
                 storage_handler.download_file_from_s3(
                     bucket_name=settings.MODEL_BUCKET_NAME,
-                    object_path=object_path,
+                    object_path=str(input_model_path),
                     local_path=str(input_model_path)
                 )
                 logger.info(f"Successfully downloaded model file from storage to {input_model_path}")
@@ -369,33 +365,32 @@ def train_model(
 
         result = {"task_id": training_task_id, "status": "completed"}
 
-        # TODO: Add conversion and evaluation
-        # # Process conversion and evaluation if training was successful
-        # if training_in.dataset.test_path and training_in.conversion:
-        #     try:
-        #         logger.info("Starting post-training chain for conversion and evaluation")
+        # Process conversion and evaluation if training was successful
+        if training_in.dataset.test_path and training_in.conversion:
+            try:
+                logger.info("Starting post-training chain for conversion and evaluation")
 
-        #         # Prepare evaluation data
-        #         prepare_evaluation_data(trainer, training_in, dataset_path)
+                # Prepare evaluation data
+                prepare_evaluation_data(trainer, training_in, dataset_path)
 
-        #         # Get model paths
-        #         paths = get_model_paths(training_task_id)
-        #         if not paths:
-        #             return result
-        #         input_model_path, output_dir = paths
-        #         model_id = training_task.model_id
+                # Get model paths
+                paths = get_model_paths(training_task_id)
+                if not paths:
+                    return result
+                input_model_path, output_dir = paths
+                model_id = training_task.model_id
 
-        #         # Trigger conversion and evaluation
-        #         trigger_conversion_evaluation(
-        #             api_key=api_key,
-        #             input_model_path=input_model_path,
-        #             output_dir=output_dir,
-        #             model_id=model_id,
-        #             training_in=training_in,
-        #             training_task_id=training_task_id
-        #         )
+                # Trigger conversion and evaluation
+                trigger_conversion_evaluation(
+                    api_key=api_key,
+                    input_model_path=input_model_path,
+                    output_dir=output_dir,
+                    model_id=model_id,
+                    training_in=training_in,
+                    training_task_id=training_task_id
+                )
 
-        #     except Exception as chain_error:
-        #         logger.error(f"Error in conversion-evaluation chain: {str(chain_error)}")
+            except Exception as chain_error:
+                logger.error(f"Error in conversion-evaluation chain: {str(chain_error)}")
 
         return result
