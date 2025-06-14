@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from netspresso.netspresso import NetsPresso
 from src.api.v1.schemas.tasks.conversion_task import (
     TargetFrameworkPayload,
 )
@@ -139,7 +140,13 @@ class EvaluationTaskService:
 
         raise ConversionTaskNotFoundException()
 
-    def _check_evaluation_task_status(self, db: Session, model_id: str, dataset_path: str, confidence_score: float):
+    def _check_evaluation_task_status(
+        self,
+        db: Session,
+        model_id: str,
+        dataset_path: str,
+        confidence_score: float
+    ):
         evaluation_task = evaluation_task_repository.get_by_model_dataset_and_confidence(
             db=db,
             model_id=model_id,
