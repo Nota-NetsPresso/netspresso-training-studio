@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from netspresso.clients.auth.v2.schemas.common import ApiKeyStatus
+from src.clients.auth.v2.schemas.common import ApiKeyStatus
 
 
 @dataclass

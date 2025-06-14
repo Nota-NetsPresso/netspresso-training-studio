@@ -1,8 +1,8 @@
 from dataclasses import asdict, dataclass, field
 from typing import List, Optional
 
-from netspresso.enums.model import Framework
-from netspresso.exceptions.compressor import NotFillInputLayersException
+from src.enums.model import Framework
+from src.exceptions.compressor import NotFillInputLayersException
 
 
 @dataclass

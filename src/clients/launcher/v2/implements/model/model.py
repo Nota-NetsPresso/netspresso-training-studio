@@ -3,8 +3,9 @@ from dataclasses import asdict
 import requests
 from requests_toolbelt import MultipartEncoderMonitor
 
-from netspresso.clients.launcher.v2.interfaces import ModelInterface
-from netspresso.clients.launcher.v2.schemas import (
+from src.clients.enums.task import LauncherTask
+from src.clients.launcher.v2.interfaces import ModelInterface
+from src.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     RequestModelUploadUrl,
     RequestPagination,
@@ -17,9 +18,8 @@ from netspresso.clients.launcher.v2.schemas import (
     ResponseModelUploadUrl,
     UploadFile,
 )
-from netspresso.clients.utils.common import create_multipart_data, create_progress_func, progress_callback
-from netspresso.clients.utils.requester import Requester
-from netspresso.enums import LauncherTask
+from src.clients.utils.common import create_multipart_data, create_progress_func, progress_callback
+from src.clients.utils.requester import Requester
 
 
 class ModelAPI(ModelInterface):

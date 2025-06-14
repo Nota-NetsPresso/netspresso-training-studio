@@ -2,14 +2,10 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import List, Optional
 
+from fastapi import status
 
-class Origin(str, Enum):
-    ROUTER = "router"
-    SERVICE = "service"
-    REPOSITORY = "repository"
-    CORE = "core"
-    CLIENT = "client"
-    LIBRARY = "library"
+from src.enums.exception import Origin
+from src.exceptions.base import AdditionalData, ExceptionBase
 
 
 class LinkType(str, Enum):
@@ -23,109 +19,84 @@ class LinkInfo:
     value: str = field(metadata={"description": "Link value"})
 
 
-@dataclass
-class AdditionalData:
-    origin: Optional[str] = field(default="pynp", metadata={"description": "Error origin"})
-    error_log: Optional[str] = field(default="", metadata={"description": "Error log"})
-    link: Optional[LinkInfo] = field(default=None, metadata={"description": "Link info"})
-
-
-@dataclass
-class ExceptionDetail:
-    data: Optional[AdditionalData] = field(default_factory=AdditionalData, metadata={"description": "Additional data"})
-    error_code: str = field(default="", metadata={"description": "Error code"})
-    name: str = field(default="", metadata={"description": "Error name"})
-    message: str = field(default="", metadata={"description": "Error message"})
-
-
-class PyNPException(Exception):
-    def __init__(
-        self,
-        data: Optional[AdditionalData],
-        error_code: str,
-        name: str,
-        message: str,
-    ):
-        detail = ExceptionDetail(
-            data=data,
-            error_code=error_code,
-            name=name,
-            message=message,
-        )
-        detail_dict = asdict(detail)
-        super().__init__(detail_dict)
-        self.detail = detail_dict
-
-
-class NotEnoughCreditException(PyNPException):
+class NotEnoughCreditException(ExceptionBase):
     def __init__(self, current_credit: int, service_credit: int, service_task_name: str):
         error_log = (
-            f"Your current balance of {current_credit} credits is insufficient to complete the task. \n"
-            f"{service_credit} credits are required for one {service_task_name} task. \n"
+            f"Your current balance of {current_credit} credits is insufficient to complete the task.\n"
+            f"{service_credit} credits are required for one {service_task_name} task.\n"
             f"For additional credit, please contact us at netspresso@nota.ai."
         )
-        message = "Not enough credits. Please check your credit."
         super().__init__(
-            data=AdditionalData(
-                origin="pynp",
-                error_log=error_log,
-            ),
-            error_code="",
+            data=AdditionalData(origin=Origin.SERVICE, error_log=error_log),
+            error_code="credit40001",
+            status_code=status.HTTP_400_BAD_REQUEST,
             name=self.__class__.__name__,
-            message=message,
+            message="Not enough credits. Please check your credit balance.",
         )
 
 
-class NotSupportedFrameworkException(PyNPException):
+class NotSupportedFrameworkException(ExceptionBase):
     def __init__(self, available_frameworks: List, framework: int):
-        message = f"The framework supports {available_frameworks}. The entered framework is {framework}."
         super().__init__(
-            data=AdditionalData(origin="pynp"),
-            error_code="",
+            data=AdditionalData(origin=Origin.SERVICE),
+            error_code="framework40001",
+            status_code=status.HTTP_400_BAD_REQUEST,
             name=self.__class__.__name__,
-            message=message,
+            message=f"Framework {framework} is not supported. Available frameworks are: {available_frameworks}",
         )
 
 
-class NotValidInputModelPath(PyNPException):
-    def __init__(self):
-        message = "The input_model_path should be a file and cannot be a directory. Ex) ./model/sample_model.pt"
+class NotValidInputModelPathException(ExceptionBase):
+    def __init__(self, path: str):
         super().__init__(
-            data=AdditionalData(origin="pynp"),
-            error_code="",
+            data=AdditionalData(origin=Origin.SERVICE),
+            error_code="model40001",
+            status_code=status.HTTP_400_BAD_REQUEST,
             name=self.__class__.__name__,
-            message=message,
+            message=f"The input model path '{path}' should be a file, not a directory. Example: './model/sample_model.pt'",
         )
 
 
-class GatewayTimeoutException(PyNPException):
-    def __init__(self, error_log):
-        message = "504 Gateway Timeout: The server did not receive a timely response."
+class GatewayTimeoutException(ExceptionBase):
+    def __init__(self, error_log: str):
         super().__init__(
-            data=AdditionalData(origin="pynp", error_log=error_log),
-            error_code="",
+            data=AdditionalData(origin=Origin.SERVICE, error_log=error_log),
+            error_code="gateway50401",
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             name=self.__class__.__name__,
-            message=message,
+            message="504 Gateway Timeout: The server did not receive a timely response.",
         )
 
 
-class UnexpetedException(PyNPException):
-    def __init__(self, error_log, status_code):
+class UnexpectedException(ExceptionBase):
+    def __init__(self, error_log: str, status_code: int):
+        super().__init__(
+            data=AdditionalData(origin=Origin.SERVICE, error_log=error_log),
+            error_code="server50001",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            name=self.__class__.__name__,
+            message=f"An unexpected error occurred with status code {status_code}",
+        )
+
+
+class InternalServerErrorException(ExceptionBase):
+    def __init__(self, error_log: str, status_code: int):
+        super().__init__(
+            data=AdditionalData(origin=Origin.SERVICE, error_log=error_log),
+            error_code="server50002",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            name=self.__class__.__name__,
+            message=f"Internal server error occurred with status code {status_code}",
+        )
+
+
+class UnexpetedException(ExceptionBase):
+    def __init__(self, error_log: str, status_code: int):
         message = f"Unexpected error occurred with status code {status_code}"
         super().__init__(
-            data=AdditionalData(origin="pynp", error_log=error_log),
-            error_code="",
-            name=self.__class__.__name__,
-            message=message,
-        )
-
-
-class InternalServerErrorException(PyNPException):
-    def __init__(self, error_log, status_code):
-        message = f"Internal server error occurred with status code {status_code}"
-        super().__init__(
-            data=AdditionalData(origin="pynp", error_log=error_log),
-            error_code="",
+            data=AdditionalData(origin=Origin.SERVICE, error_log=error_log),
+            error_code="server50003",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             name=self.__class__.__name__,
             message=message,
         )

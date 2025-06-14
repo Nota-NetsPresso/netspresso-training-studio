@@ -1,10 +1,16 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.device import (
+from src.api.v1.schemas.tasks.conversion_task import (
+    ConversionCreate,
+    ConversionCreatePayload,
+    ConversionPayload,
+    TargetFrameworkPayload,
+)
+from src.api.v1.schemas.tasks.device import (
     HardwareTypePayload,
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
@@ -12,23 +18,16 @@ from app.api.v1.schemas.device import (
     SupportedDeviceResponse,
     TargetDevicePayload,
 )
-from app.api.v1.schemas.task.conversion.conversion_task import (
-    ConversionCreate,
-    ConversionCreatePayload,
-    ConversionPayload,
-    TargetFrameworkPayload,
-)
-from app.services.project import project_service
-from app.worker.conversion_task import convert_model
-from netspresso.clients.launcher.v2.schemas.common import DeviceInfo
-from netspresso.enums import Status, TaskStatusForDisplay
-from netspresso.enums.conversion import SourceFramework
-from netspresso.netspresso import NetsPresso
-from netspresso.utils.db.models.base import generate_uuid
-from netspresso.utils.db.models.conversion import ConversionTask
-from netspresso.utils.db.repositories.base import Order, TimeSort
-from netspresso.utils.db.repositories.conversion import conversion_task_repository
-from netspresso.utils.db.repositories.model import model_repository
+from src.clients.enums.task import TaskStatusForDisplay
+from src.clients.launcher.v2.schemas.common import DeviceInfo
+from src.enums.conversion import SourceFramework
+from src.models.base import generate_uuid
+from src.models.conversion import ConversionTask
+from src.repositories.base import Order, TimeSort
+from src.repositories.conversion import conversion_task_repository
+from src.repositories.model import model_repository
+from src.services.project import project_service
+from src.worker.conversion_task import convert_model
 
 
 class ConversionTaskService:
@@ -234,7 +233,7 @@ class ConversionTaskService:
             updated_at=conversion_task.updated_at,
         )
 
-    def get_conversion_tasks(self, db: Session, model_id: str, api_key: str) -> List[ConversionPayload]:
+    def get_conversion_tasks(self, db: Session, model_id: str, token: str) -> List[ConversionPayload]:
         conversion_tasks = conversion_task_repository.get_all_by_model_id(
             db=db, model_id=model_id, order=Order.DESC, time_sort=TimeSort.CREATED_AT,
         )
@@ -250,6 +249,23 @@ class ConversionTaskService:
         model = model_repository.soft_delete(db=db, model=model)
 
         return self._create_conversion_payload(conversion_task)
+
+    def _get_conversion_info(self, db: Session, model_id: str) -> tuple[Optional[str], List[str], List[str]]:
+        # Get all conversion tasks sorted by creation time (newest first)
+        conversion_tasks = conversion_task_repository.get_all_by_model_id(
+            db=db, model_id=model_id, order=Order.DESC, time_sort=TimeSort.CREATED_AT,
+        )
+
+        task_ids = []
+        model_ids = []
+
+        for task in conversion_tasks:
+            task_ids.append(task.task_id)
+            model_ids.append(task.model_id)
+
+        latest_status = conversion_tasks[0].status if conversion_tasks else None
+
+        return latest_status, task_ids, model_ids
 
 
 conversion_task_service = ConversionTaskService()

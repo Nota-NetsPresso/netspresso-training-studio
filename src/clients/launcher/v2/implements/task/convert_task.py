@@ -3,8 +3,9 @@ from enum import Enum
 
 from loguru import logger
 
-from netspresso.clients.launcher.v2.interfaces import TaskInterface
-from netspresso.clients.launcher.v2.schemas import (
+from src.clients.enums.task import LauncherTask
+from src.clients.launcher.v2.interfaces import TaskInterface
+from src.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     RequestConvert,
     ResponseConvertDownloadModelUrlItem,
@@ -14,8 +15,7 @@ from netspresso.clients.launcher.v2.schemas import (
     ResponseConvertTaskItem,
     UploadFile,
 )
-from netspresso.clients.utils.requester import Requester
-from netspresso.enums import LauncherTask
+from src.clients.utils.requester import Requester
 
 
 class ConvertTaskAPI(TaskInterface):

@@ -3,10 +3,11 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Union
 
-from netspresso.clients.utils.system import ENV_STR
-from netspresso.enums import DataType, Framework, HardwareType, SoftwareVersion, SoftwareVersionDisplay
-from netspresso.metadata import common
-from netspresso.metadata.common import AvailableOption, SoftwareVersions
+from src.clients.metadata import common
+from src.clients.metadata.common import AvailableOption, SoftwareVersions
+from src.clients.utils.system import ENV_STR
+from src.enums.device import HardwareType, SoftwareVersion, SoftwareVersionDisplay
+from src.enums.model import DataType, Framework
 
 version = (Path(__file__).parent.parent.parent.parent.parent / "VERSION").read_text().strip()
 

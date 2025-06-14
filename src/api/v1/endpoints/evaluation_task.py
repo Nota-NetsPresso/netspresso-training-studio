@@ -1,6 +1,3 @@
-from fastapi import APIRouter, Depends, Path, Query
-from sqlalchemy.orm import Session
-
 from app.api.deps import api_key_header
 from app.api.v1.schemas.device import SupportedDevicesResponse
 from app.api.v1.schemas.task.evaluation.evaluation_task import (
@@ -13,11 +10,14 @@ from app.api.v1.schemas.task.evaluation.evaluation_task import (
     EvaluationResultsResponse,
     EvaluationsResponse,
 )
-from app.api.v1.schemas.task.train.dataset import EvaluationDatasetPayload
-from app.services.evaluation_task import evaluation_task_service
-from app.services.model import model_service
-from netspresso.enums.conversion import SourceFramework
+from fastapi import APIRouter, Depends, Path, Query
+from sqlalchemy.orm import Session
+
 from netspresso.utils.db.session import get_db
+from src.api.v1.schemas.tasks.dataset import EvaluationDatasetPayload
+from src.enums.conversion import SourceFramework
+from src.services.conversion_task import conversion_task_service
+from src.services.evaluation_task import evaluation_task_service
 
 router = APIRouter()
 
@@ -57,7 +57,7 @@ def get_evaluation_tasks(
     api_key: str = Depends(api_key_header),
 ) -> EvaluationsResponse:
     # 1. Get all converted model IDs derived from the trained model
-    _, _, converted_model_ids = model_service._get_conversion_info(db, model_id)
+    _, _, converted_model_ids = conversion_task_service._get_conversion_info(db, model_id)
 
     # 2. Get all evaluation tasks using original model ID and converted model IDs
     evaluation_tasks = []

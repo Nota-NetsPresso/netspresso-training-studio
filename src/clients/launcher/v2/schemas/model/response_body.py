@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from netspresso.clients.launcher.v2.schemas.common import (
+from src.clients.launcher.v2.schemas.common import (
     ModelOption,
     ResponseItem,
     ResponseItems,
     ResponsePaginationItems,
 )
-from netspresso.clients.launcher.v2.schemas.model import ModelBase, ModelStatus
+from src.clients.launcher.v2.schemas.model import ModelBase, ModelStatus
 
 
 @dataclass

@@ -1,7 +1,7 @@
-from netspresso.clients.config import Config, ServiceModule, ServiceName
-from netspresso.clients.launcher.v2.benchmarker import Benchmarker
-from netspresso.clients.launcher.v2.converter import Converter
-from netspresso.clients.launcher.v2.quantizer import Quantizer
+from src.clients.config import Config, ServiceModule, ServiceName
+from src.clients.launcher.v2.benchmarker import Benchmarker
+from src.clients.launcher.v2.converter import Converter
+from src.clients.launcher.v2.quantizer import Quantizer
 
 
 class LauncherAPIClient:

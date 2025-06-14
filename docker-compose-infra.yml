@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: np-training-studio-api
+    ports:
+      - "58200:80"
+    volumes:
+      - /home/bmlee/projects/np_training_studio:/np_training_studio
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .docker-compose.env
+    stdin_open: true # docker run -i
+    tty: true # docker run -t
+    command:
+      - bash
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: np-training-studio-worker
+    volumes:
+      - /home/bmlee/projects/np_training_studio:/np_training_studio
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    env_file:
+      - .docker-compose.env
+    stdin_open: true # docker run -i
+    tty: true # docker run -t
+    command: bash # python -m app.worker.worker
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: np-training-studio-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    env_file:
+      - .docker-compose.env
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  rabbitmq_data: 

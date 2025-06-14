@@ -1,18 +1,19 @@
-from typing import List
+from typing import List, Optional, Tuple
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.api.v1.schemas.task.compression.compression_task import (
+from src.api.v1.schemas.tasks.compression_task import (
     CompressionCreate,
     CompressionCreatePayload,
     CompressionPayload,
 )
-from app.worker.compression_task import compress_model
-from netspresso.enums.metadata import Status
-from netspresso.utils.db.models.base import generate_uuid
-from netspresso.utils.db.repositories.compression import compression_task_repository
-from netspresso.utils.db.repositories.model import model_repository
+from src.enums.task import TaskStatus
+from src.models.base import generate_uuid
+from src.models.compression import CompressionTask
+from src.repositories.compression import compression_task_repository
+from src.repositories.model import model_repository
+from src.worker.compression_task import compress_model
 
 
 class CompressionTaskService:
@@ -33,7 +34,7 @@ class CompressionTaskService:
 
             if is_same_options:
                 # If task is in NOT_STARTED, IN_PROGRESS, or COMPLETED state, return it
-                reusable_states = [Status.NOT_STARTED, Status.IN_PROGRESS, Status.COMPLETED]
+                reusable_states = [TaskStatus.NOT_STARTED, TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED]
                 if task.status in reusable_states:
                     logger.info(f"Returning existing compression task with status {task.status}: {task.task_id}")
                     return CompressionCreatePayload(task_id=task.task_id)
@@ -69,7 +70,7 @@ class CompressionTaskService:
 
         return compression_task
 
-    def get_compression_tasks(self, db: Session, model_id: str, api_key: str) -> List[CompressionPayload]:
+    def get_compression_tasks(self, db: Session, model_id: str, token: str) -> List[CompressionPayload]:
         compression_tasks = compression_task_repository.get_all_by_input_model_id(
             db=db, input_model_id=model_id
         )
@@ -85,6 +86,44 @@ class CompressionTaskService:
         model = model_repository.get_by_model_id(db=db, model_id=compression_task.model_id)
         model = model_repository.soft_delete(db=db, model=model)
 
+        compression_task = CompressionPayload.model_validate(compression_task)
+        related_tasks = compression_task_repository.get_all_by_input_model_id(
+            db=db, input_model_id=compression_task.input_model_id
+        )
+        compression_task.related_task_ids = [task.task_id for task in related_tasks]
+
+        return compression_task
+
+    def soft_delete_compression_task(self, db: Session, compression_task: CompressionTask) -> CompressionPayload:
+        compression_task = compression_task_repository.soft_delete(db=db, model=compression_task)
+
+        return CompressionPayload.model_validate(compression_task)
+
+    def _get_compression_info(self, db: Session, model_id: str) -> Tuple[Optional[str], List[str]]:
+        """Get compression task information for a model
+
+        Args:
+            db: Database session
+            model_id: Model ID to get compression tasks for
+
+        Returns:
+            tuple: (latest status, task IDs)
+        """
+        compression_tasks = compression_task_repository.get_all_by_input_model_id(db=db, input_model_id=model_id)
+        if not compression_tasks:
+            return None, []
+
+        task_ids = [task.task_id for task in compression_tasks]
+        compression_task = compression_task_repository.get_latest_compression_task(db=db, input_model_id=model_id)
+        latest_status = compression_task.status
+
+        return latest_status, task_ids
+
+    def get_compression_task_by_model_id(self, db: Session, model_id: str) -> CompressionPayload:
+        compression_task = compression_task_repository.get_by_model_id(
+            db=db,
+            model_id=model_id
+        )
         compression_task = CompressionPayload.model_validate(compression_task)
         related_tasks = compression_task_repository.get_all_by_input_model_id(
             db=db, input_model_id=compression_task.input_model_id

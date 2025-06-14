@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Generator
 
 from loguru import logger
@@ -36,3 +37,18 @@ def get_db() -> Generator:
         yield db
     finally:
         db.close()
+
+
+@contextmanager
+def get_db_session():
+    db = None
+    try:
+        db = SessionLocal()
+        yield db
+    except Exception as e:
+        logger.error(f"Database session error: {e}")
+        raise e
+    finally:
+        db.close()
+
+init_db()

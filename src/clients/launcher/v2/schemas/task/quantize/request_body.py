@@ -2,8 +2,8 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional, Union
 
-from netspresso.clients.launcher.v2.schemas import InputLayer
-from netspresso.enums import QuantizationMode, QuantizationPrecision, SimilarityMetric
+from src.clients.launcher.v2.schemas import InputLayer
+from src.enums.quantize import QuantizationMode, QuantizationPrecision, SimilarityMetric
 
 
 @dataclass

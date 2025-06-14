@@ -1,4 +1,3 @@
-import logging
 import os
 import tempfile
 from pathlib import Path
@@ -6,32 +5,26 @@ from typing import Any, Dict, Optional, Tuple
 
 from loguru import logger
 
-from app.api.v1.schemas.task.train.dataset import DatasetCreate
-from app.api.v1.schemas.task.train.train_task import TrainingCreate
-from app.worker.celery_app import celery_app
-from app.zenko.storage_handler import ObjectStorageHandler
-from netspresso import NetsPresso
-from netspresso.enums.conversion import EvaluationTargetFramework
-from netspresso.enums.metadata import Status
-from netspresso.enums.project import SubFolder
-from netspresso.enums.train import StorageLocation
-from netspresso.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
-from netspresso.trainer.optimizers.optimizer_manager import OptimizerManager
-from netspresso.trainer.schedulers.scheduler_manager import SchedulerManager
-from netspresso.trainer.storage.dataforge import Split
-from netspresso.trainer.trainer import Trainer
-from netspresso.utils.db.repositories.compression import compression_task_repository
-from netspresso.utils.db.repositories.model import model_repository
-from netspresso.utils.db.repositories.project import project_repository
-from netspresso.utils.db.repositories.training import training_task_repository
-from netspresso.utils.db.session import get_db_session
+from src.api.v1.schemas.tasks.training_task import TrainingCreate
+from src.configs.settings import settings
+from src.core.db.session import get_db_session
+from src.enums.conversion import EvaluationTargetFramework
+from src.enums.task import TaskStatus
+from src.enums.training import StorageLocation
+from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
+from src.modules.trainer.optimizers.optimizer_manager import OptimizerManager
+from src.modules.trainer.schedulers.scheduler_manager import SchedulerManager
+from src.modules.trainer.storage.dataforge import Split
+from src.modules.trainer.trainer import Trainer
+from src.repositories.model import model_repository
+from src.repositories.project import project_repository
+from src.repositories.training import training_task_repository
+from src.worker.celery_app import celery_app
+from src.zenko.storage_handler import ObjectStorageHandler
 
 # Constants
-NP_TRAINING_STUDIO_PATH = Path(os.environ.get("NP_TRAINING_STUDIO_PATH", "/np_training_studio"))
 DEFAULT_CONFIDENCE_SCORES = [0.3, 0.5, 0.6]
 DEFAULT_AUGMENTATIONS = [Resize(), Pad(fill=114), ToTensor(), Normalize()]
-BUCKET_NAME = "model"
-
 storage_handler = ObjectStorageHandler()
 
 def prepare_training_data(trainer: Trainer, training_in: TrainingCreate) -> Path:
@@ -72,7 +65,7 @@ def prepare_training_data(trainer: Trainer, training_in: TrainingCreate) -> Path
         return train_dataset_path
 
     else:  # StorageLocation.STORAGE
-        dataset_dir = NP_TRAINING_STUDIO_PATH / "datasets" / "storage"
+        dataset_dir = Path(settings.NP_TRAINING_STUDIO_PATH) / "datasets" / "storage"
         dataset_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Downloading training dataset: {dataset_info.train_path}")
@@ -99,8 +92,15 @@ def prepare_training_data(trainer: Trainer, training_in: TrainingCreate) -> Path
 
         return dataset_dir
 
-def configure_model_and_training(trainer: Trainer, training_in: TrainingCreate):
-    """Configure model, augmentations, and training parameters."""
+
+def configure_model_and_training(trainer: Trainer, training_in: TrainingCreate, input_model_info: Optional[Dict[str, Any]] = None):
+    """Configure model, augmentations, and training parameters.
+
+    Args:
+        trainer: Trainer instance
+        training_in: Training configuration
+        input_model_info: Optional information about input model for retraining
+    """
     img_size = training_in.input_shapes[0].dimension[0]
 
     if training_in.pretrained_model:
@@ -108,43 +108,32 @@ def configure_model_and_training(trainer: Trainer, training_in: TrainingCreate):
             model_name=training_in.pretrained_model,
             img_size=img_size,
         )
-    elif training_in.input_model_id:
-        with get_db_session() as session:
-            input_model = model_repository.get_by_model_id(db=session, model_id=training_in.input_model_id)
-            if input_model.type == SubFolder.TRAINED_MODELS:
-                training_task = training_task_repository.get_by_model_id(db=session, model_id=training_in.input_model_id)
-            else:
-                compression_task = compression_task_repository.get_by_model_id(db=session, model_id=training_in.input_model_id)
-                training_task = training_task_repository.get_by_model_id(db=session, model_id=compression_task.input_model_id)
+    elif training_in.input_model_id and input_model_info:
+        # Use input model info provided by the service
+        temp_dir = tempfile.mkdtemp(prefix="netspresso_training_")
+        download_dir = Path(temp_dir) / "input_model"
+        download_dir.mkdir(parents=True, exist_ok=True)
 
-            temp_dir = tempfile.mkdtemp(prefix="netspresso_training_")
-            output_dir = temp_dir
+        remote_model_path = input_model_info["remote_model_path"]
+        local_path = download_dir / Path(remote_model_path).name
 
-            download_dir = Path(output_dir) / "input_model"
-            download_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Downloading input model from Zenko: {remote_model_path}")
+        storage_handler.download_file_from_s3(
+            bucket_name=settings.MODEL_BUCKET_NAME,
+            local_path=str(local_path),
+            object_path=str(remote_model_path),
+        )
+        logger.info(f"Downloaded input model from Zenko: {local_path}")
 
-            if input_model.type == SubFolder.TRAINED_MODELS:
-                remote_model_path = Path(input_model.object_path) / "model.pt"
-                local_path = download_dir / "model.pt"
-            else:
-                remote_model_path = Path(input_model.object_path)
-                local_path = download_dir / Path(input_model.object_path).name
+        trainer.set_model_config(
+            model_name=input_model_info["pretrained_model"],
+            img_size=img_size,
+            path=str(local_path),
+        )
+    else:
+        raise ValueError("Either pretrained_model or input_model_id with input_model_info must be provided")
 
-            logger.info(f"Downloading input model from Zenko: {remote_model_path}")
-            storage_handler.download_file_from_s3(
-                bucket_name=BUCKET_NAME,
-                local_path=str(local_path),
-                object_path=str(remote_model_path),
-            )
-            logger.info(f"Downloaded input model from Zenko: {local_path}")
-
-            trainer.set_model_config(
-                model_name=training_task.pretrained_model,
-                img_size=img_size,
-                path=str(local_path),
-            )
-
-    logger.info(f"Setting model config with size: {img_size} and model: {training_in.pretrained_model}")
+    logger.info(f"Setting model config with size: {img_size} and model: {training_in.pretrained_model or input_model_info.get('pretrained_model')}")
 
     trainer.set_augmentation_config(
         train_transforms=DEFAULT_AUGMENTATIONS,
@@ -166,25 +155,6 @@ def configure_model_and_training(trainer: Trainer, training_in: TrainingCreate):
         optimizer=optimizer,
         scheduler=scheduler,
     )
-
-
-def check_training_result(training_task_id: str) -> bool:
-    """Check if training completed successfully.
-
-    Args:
-        training_task_id: ID of the training task
-
-    Returns:
-        bool: True if training completed successfully, False otherwise
-    """
-    with get_db_session() as session:
-        training_task = training_task_repository.get_by_task_id(db=session, task_id=training_task_id)
-
-        if training_task.status != Status.COMPLETED:
-            logger.warning(f"Training task {training_task_id} did not complete successfully. Status: {training_task.status}")
-            return False
-
-        return True
 
 
 def prepare_evaluation_data(trainer: Trainer, training_in: TrainingCreate, dataset_dir: Path):
@@ -255,10 +225,10 @@ def get_model_paths(training_task_id: str) -> Optional[Tuple[Path, Path]]:
     Returns:
         Tuple containing (input_model_path, output_dir) or None if unsuccessful
     """
-    with get_db_session() as session:
-        training_task = training_task_repository.get_by_task_id(db=session, task_id=training_task_id)
-        model_info = model_repository.get_by_model_id(db=session, model_id=training_task.model_id)
-        project = project_repository.get_by_project_id(db=session, project_id=model_info.project_id)
+    with get_db_context() as db:
+        training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
+        model_info = model_repository.get_by_model_id(db=db, model_id=training_task.model_id)
+        project = project_repository.get_by_project_id(db=db, project_id=model_info.project_id)
 
         project_abs_path = Path(project.project_abs_path)
         input_model_dir = project_abs_path / model_info.object_path
@@ -281,7 +251,7 @@ def get_model_paths(training_task_id: str) -> Optional[Tuple[Path, Path]]:
             try:
                 # Download file from storage
                 storage_handler.download_file_from_s3(
-                    bucket_name=BUCKET_NAME,
+                    bucket_name=settings.MODEL_BUCKET_NAME,
                     object_path=object_path,
                     local_path=str(input_model_path)
                 )
@@ -308,7 +278,7 @@ def trigger_conversion_evaluation(
     training_task_id: str
 ):
     """Trigger the conversion and evaluation chain."""
-    from app.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
+    from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
 
     conversion_option = training_in.conversion
 
@@ -352,92 +322,80 @@ def trigger_conversion_evaluation(
 @celery_app.task(bind=True, name='train_model')
 def train_model(
     self,
-    task_id: str,
+    training_task_id: str,
     api_key: str,
     training_in: Dict[str, Any],
     unique_model_name: str,
+    dataset_path: str,
+    training_type: str = "training",
+    input_model_info: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Main training task that orchestrates the training, conversion, and evaluation workflow."""
-    try:
-        # Parse and validate input
+
+    with get_db_session() as db:
         training_in: TrainingCreate = TrainingCreate.model_validate(training_in)
-        logger.info(f"Starting training task: {task_id} for model: {unique_model_name}")
+        logger.info(f"Starting training task: {training_task_id} for model: {unique_model_name}")
 
         # Set environment variables
         os.environ['CUDA_VISIBLE_DEVICES'] = training_in.environment.gpus
 
         # Initialize NetsPresso
-        netspresso = NetsPresso(api_key=api_key)
-        trainer = netspresso.trainer(task=training_in.task)
+        trainer = Trainer(task=training_in.task)
 
-        # Step 1: Prepare training data
-        dataset_dir = prepare_training_data(trainer, training_in)
+        training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
 
-        # Step 2: Configure model and training parameters
-        configure_model_and_training(trainer, training_in)
+        # Configure model and training parameters
+        logger.info(f"Configuring model and training parameters for task_id: {training_task_id}")
+        configure_model_and_training(trainer, training_in, input_model_info)
 
-        if training_in.pretrained_model:
-            training_type = "training"
-        elif training_in.input_model_id:
-            training_type = "retraining"
-        else:
-            training_type = "training"
+        trainer.set_dataset(
+            dataset_root_path=training_task.dataset.path,
+            dataset_name=training_task.dataset.name,
+        )
 
-        # Step 3: Execute training
-        logger.info(f"Starting training with task_id: {task_id}")
-        training_task_id = trainer.train(
+        # Execute training
+        logger.info(f"Starting training with task_id: {training_task_id}")
+        training_task = trainer.train(
+            db=db,
             gpus=training_in.environment.gpus,
-            model_name=unique_model_name,
-            project_id=training_in.project_id,
-            task_id=task_id,
-            training_type=training_type,
-            input_model_id=training_in.input_model_id,
+            training_task_id=training_task_id,
         )
         logger.info(f"Training completed with task_id: {training_task_id}")
 
-        # Step 4: Verify training result
-        if not check_training_result(training_task_id):
-            with get_db_session() as session:
-                training_task = training_task_repository.get_by_task_id(db=session, task_id=training_task_id)
-                return {"task_id": training_task_id, "status": training_task.status}
+        # Verify training result
+        if training_task.status != TaskStatus.COMPLETED:
+            logger.warning(f"Training task {training_task_id} did not complete successfully. Status: {training_task.status}")
+            return {"task_id": training_task_id, "status": training_task.status}
 
         result = {"task_id": training_task_id, "status": "completed"}
 
-        # Step 5: Process conversion and evaluation if training was successful
-        if training_in.dataset.test_path and training_in.conversion:
-            try:
-                logger.info("Starting post-training chain for conversion and evaluation")
+        # TODO: Add conversion and evaluation
+        # # Process conversion and evaluation if training was successful
+        # if training_in.dataset.test_path and training_in.conversion:
+        #     try:
+        #         logger.info("Starting post-training chain for conversion and evaluation")
 
-                # Step 5.1: Prepare evaluation data
-                prepare_evaluation_data(trainer, training_in, dataset_dir)
+        #         # Prepare evaluation data
+        #         prepare_evaluation_data(trainer, training_in, dataset_path)
 
-                # Step 5.2: Get model paths
-                paths = get_model_paths(training_task_id)
-                if not paths:
-                    return result
+        #         # Get model paths
+        #         paths = get_model_paths(training_task_id)
+        #         if not paths:
+        #             return result
+        #         input_model_path, output_dir = paths
+        #         model_id = training_task.model_id
 
-                input_model_path, output_dir = paths
+        #         # Trigger conversion and evaluation
+        #         trigger_conversion_evaluation(
+        #             api_key=api_key,
+        #             input_model_path=input_model_path,
+        #             output_dir=output_dir,
+        #             model_id=model_id,
+        #             training_in=training_in,
+        #             training_task_id=training_task_id
+        #         )
 
-                # Step 5.3: Get model ID
-                with get_db_session() as session:
-                    training_task = training_task_repository.get_by_task_id(db=session, task_id=training_task_id)
-                    model_id = training_task.model_id
-
-                # Step 5.4: Trigger conversion and evaluation
-                trigger_conversion_evaluation(
-                    api_key=api_key,
-                    input_model_path=input_model_path,
-                    output_dir=output_dir,
-                    model_id=model_id,
-                    training_in=training_in,
-                    training_task_id=training_task_id
-                )
-
-            except Exception as chain_error:
-                logger.error(f"Error in conversion-evaluation chain: {str(chain_error)}")
+        #     except Exception as chain_error:
+        #         logger.error(f"Error in conversion-evaluation chain: {str(chain_error)}")
 
         return result
-
-    except Exception as e:
-        logger.error(f"Training failed: {str(e)}")
-        raise Exception(f"Training failed: {str(e)}")

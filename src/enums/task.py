@@ -10,6 +10,14 @@ class TaskType(str, Enum):
     BENCHMARK = "benchmark"
 
 
+class RetrievalTaskType(str, Enum):
+    COMPRESS = "compress"
+    RETRAIN = "retrain"
+    CONVERT = "convert"
+    BENCHMARK = "benchmark"
+    EVALUATE = "evaluate"
+
+
 class TaskStatus(str, Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"

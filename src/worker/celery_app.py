@@ -28,7 +28,7 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.environ.get('CELERY_WORKER_PREFETCH_M
 CELERY_WORKER_MAX_TASKS_PER_CHILD = int(os.environ.get('CELERY_WORKER_MAX_TASKS_PER_CHILD', '1'))
 
 # Celery 설정
-celery_app = Celery("netspresso")
+celery_app = Celery("np_training_studio")
 celery_app.conf.update(
     broker_url=CELERY_BROKER_URL,
     result_backend=CELERY_RESULT_BACKEND,
@@ -43,11 +43,11 @@ celery_app.conf.update(
     broker_heartbeat=None,
     task_track_started=True,
     include=[
-        "app.worker.training_task",
-        "app.worker.conversion_task",
-        "app.worker.benchmark_task",
-        "app.worker.evaluation_task",
-        "app.worker.compression_task",
+        "src.worker.training_task",
+        "src.worker.conversion_task",
+        "src.worker.benchmark_task",
+        "src.worker.evaluation_task",
+        "src.worker.compression_task",
     ],
     result_expires=86400,  # one day,
 )
