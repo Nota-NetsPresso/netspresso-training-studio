@@ -1,13 +1,13 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from src.modules.clients.compressor.v2.schemas.compression.base import Layer, Options, RecommendationOptions
 from src.enums.compression import CompressionMethod, RecommendationMethod
-from src.exceptions.compressor import (
+from src.exceptions.compression import (
     EmptyCompressionParamsException,
     NotValidSlampRatioException,
     NotValidVbmfRatioException,
 )
+from src.modules.clients.compressor.v2.schemas.compression.base import Layer, Options, RecommendationOptions
 
 
 @dataclass
