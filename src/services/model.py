@@ -204,7 +204,10 @@ class ModelService:
                 db=db,
                 model_id=compression_task.input_model_id
             )
-            compression_task_service.soft_delete_compression_task(db=db, compression_task=compression_task)
+            try:
+                compression_task_service.soft_delete_compression_task(db=db, compression_task=compression_task)
+            except Exception as e:
+                logger.error(f"Error deleting compression task: {e}")
         else:
             training_task = training_task_service.get_training_task_by_model_id(db=db, model_id=model_id)
 
