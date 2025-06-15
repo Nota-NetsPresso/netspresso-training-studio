@@ -5,7 +5,6 @@ from typing import List
 
 from celery import chain, signature
 
-from netspresso import NetsPresso
 from netspresso.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
 from netspresso.trainer.optimizers.optimizer_manager import OptimizerManager
 from netspresso.trainer.schedulers.scheduler_manager import SchedulerManager
@@ -18,6 +17,8 @@ from src.api.v1.schemas.tasks.training_task import TrainingCreate
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
 from src.models.base import generate_uuid
+from src.modules.evaluator.evaluator import Evaluator
+from src.modules.trainer.trainer import Trainer
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_dataset_repository
 from src.worker.celery_app import celery_app
@@ -54,13 +55,12 @@ def evaluate_model_task(
     """
     session = SessionLocal()
     try:
-        from src.services.training_task import train_task_service
+        from src.services.training_task import training_task_service
 
-        netspresso = NetsPresso(api_key=api_key)
-        training_task = train_task_service.get_training_task(db=session, task_id=training_task_id, api_key=api_key)
+        training_task = training_task_service.get_training_task(db=session, task_id=training_task_id, api_key=api_key)
 
         # Get trainer instance from the training task
-        trainer = netspresso.trainer(task=training_task.task.name)
+        trainer = Trainer(task=training_task.task.name)
 
         logger.info(f"Using pretrained model: {training_task.pretrained_model.name}")
 
@@ -152,7 +152,7 @@ def evaluate_model_task(
         trainer._apply_img_size()
 
         # Create evaluator
-        evaluator = netspresso.evaluator(trainer=trainer)
+        evaluator = Evaluator(trainer=trainer)
 
         # Perform actual evaluation
         try:
