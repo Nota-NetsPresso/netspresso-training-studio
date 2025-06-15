@@ -120,11 +120,9 @@ class ConversionTaskService:
 
         # Get model from trained models repository
         model = model_repository.get_by_model_id(db=db, model_id=conversion_in.input_model_id)
-        project = project_service.get_project(db=db, project_id=model.project_id, api_key=api_key)
 
         # Create output directory path as a 'converted' subfolder of input model path
-        project_abs_path = Path(project.project_abs_path)
-        input_model_dir = project_abs_path / model.object_path
+        input_model_dir = Path(model.object_path)
 
         input_model_path = input_model_dir / "model.onnx"
         output_dir = input_model_dir / "converted"
