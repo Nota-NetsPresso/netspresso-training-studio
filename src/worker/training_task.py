@@ -11,11 +11,11 @@ from src.core.db.session import get_db_session
 from src.enums.conversion import EvaluationTargetFramework
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
-from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
-from src.modules.trainer.optimizers.optimizer_manager import OptimizerManager
-from src.modules.trainer.schedulers.scheduler_manager import SchedulerManager
-from src.modules.trainer.storage.dataforge import Split
-from src.modules.trainer.trainer import Trainer
+from src.moduless.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
+from src.moduless.trainer.optimizers.optimizer_manager import OptimizerManager
+from src.moduless.trainer.schedulers.scheduler_manager import SchedulerManager
+from src.moduless.trainer.storage.dataforge import Split
+from src.moduless.trainer.trainer import Trainer
 from src.repositories.model import model_repository
 from src.repositories.project import project_repository
 from src.repositories.training import training_task_repository

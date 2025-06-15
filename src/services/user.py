@@ -1,5 +1,5 @@
 from src.api.v1.schemas.user import CreditInfo, DetailData, UserPayload
-from src.clients.auth import auth_client
+from src.modules.clients.auth import auth_client
 
 
 class UserService:

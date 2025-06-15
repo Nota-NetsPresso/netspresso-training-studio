@@ -17,8 +17,8 @@ from src.api.v1.schemas.tasks.training_task import TrainingCreate
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
 from src.models.base import generate_uuid
-from src.modules.evaluator.evaluator import Evaluator
-from src.modules.trainer.trainer import Trainer
+from src.moduless.evaluator.evaluator import Evaluator
+from src.moduless.trainer.trainer import Trainer
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_dataset_repository
 from src.worker.celery_app import celery_app

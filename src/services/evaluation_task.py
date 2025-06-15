@@ -25,7 +25,7 @@ from src.api.v1.schemas.tasks.evaluation_task import (
     ImagePrediction,
     PredictionForThreshold,
 )
-from src.clients.launcher.v2.schemas.common import DeviceInfo
+from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.configs.settings import settings
 from src.enums.conversion import EvaluationTargetFramework, SourceFramework, TargetFramework
 from src.enums.device import DeviceName, SoftwareVersion

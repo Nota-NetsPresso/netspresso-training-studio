@@ -18,8 +18,8 @@ from src.api.v1.schemas.tasks.device import (
     SupportedDeviceResponse,
     TargetDevicePayload,
 )
-from src.clients.enums.task import TaskStatusForDisplay
-from src.clients.launcher.v2.schemas.common import DeviceInfo
+from src.modules.clients.enums.task import TaskStatusForDisplay
+from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.enums.conversion import SourceFramework
 from src.models.base import generate_uuid
 from src.models.conversion import ConversionTask

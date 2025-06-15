@@ -19,8 +19,8 @@ from src.api.v1.schemas.tasks.device import (
     SupportedDeviceForBenchmarkPayload,
     TargetDevicePayload,
 )
-from src.clients.enums.task import TaskStatusForDisplay
-from src.clients.launcher.v2.schemas.common import DeviceInfo
+from src.modules.clients.enums.task import TaskStatusForDisplay
+from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.enums.model import Framework, ModelType
 from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
