@@ -170,7 +170,13 @@ class TrainingTaskService:
         )
 
         # Extract existing names from models and count occurrences of base name
-        base_name_count = sum(1 for model in models if model.type == ModelType.TRAINED_MODEL and model.name.startswith(name))
+        base_name_count = sum(
+            1
+            for model in models
+            if model.type == ModelType.TRAINED_MODEL
+            and model.name.startswith(name)
+            and not model.is_deleted
+        )
 
         # If no models with this name exist, return original name
         if base_name_count == 0:
