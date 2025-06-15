@@ -7,6 +7,7 @@ class ModelType(str, Enum):
     COMPRESSED_MODEL = "compressed_models"
     CONVERTED_MODEL = "converted_models"
     BENCHMARKED_MODEL = "benchmarked_models"
+    PRETRAINED_MODEL = "pretrained_models"
 
 
 class Framework(str, Enum):

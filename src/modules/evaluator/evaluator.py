@@ -21,8 +21,8 @@ from src.exceptions.trainer import NotCompletedTrainingException
 from src.exceptions.training import TrainingTaskNotFoundException
 from src.models.evaluation import EvaluationDataset, EvaluationTask
 from src.models.model import Model
-from src.moduless.trainer.trainer import Trainer
-from src.moduless.trainer.trainer_configs import TrainerConfigs
+from src.modules.trainer.trainer import Trainer
+from src.modules.trainer.trainer_configs import TrainerConfigs
 from src.repositories.compression import compression_task_repository
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_dataset_repository, evaluation_task_repository
