@@ -26,12 +26,12 @@ from src.enums.training import MODEL_DISPLAY_MAP, MODEL_GROUP_MAP, StorageLocati
 from src.models.base import generate_uuid
 from src.models.model import Model
 from src.models.training import Augmentation, Dataset, Environment, Hyperparameter, TrainingTask
-from src.moduless.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor, Transform
-from src.moduless.trainer.models import get_all_available_models
-from src.moduless.trainer.optimizers.optimizer_manager import OptimizerManager
-from src.moduless.trainer.optimizers.optimizers import get_supported_optimizers
-from src.moduless.trainer.schedulers.scheduler_manager import SchedulerManager
-from src.moduless.trainer.schedulers.schedulers import get_supported_schedulers
+from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor, Transform
+from src.modules.trainer.models import get_all_available_models
+from src.modules.trainer.optimizers.optimizer_manager import OptimizerManager
+from src.modules.trainer.optimizers.optimizers import get_supported_optimizers
+from src.modules.trainer.schedulers.scheduler_manager import SchedulerManager
+from src.modules.trainer.schedulers.schedulers import get_supported_schedulers
 from src.repositories.compression import compression_task_repository
 from src.repositories.model import model_repository
 from src.repositories.training import training_task_repository

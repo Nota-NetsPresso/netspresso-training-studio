@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-from netspresso.inferencer.visualizers.utils import voc_color_map
+from src.modules.inferencer.visualizers.utils import voc_color_map
 
 
 class SegmentationVisualizer:

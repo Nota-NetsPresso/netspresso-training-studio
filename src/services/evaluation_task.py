@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from netspresso.netspresso import NetsPresso
 from src.api.v1.schemas.tasks.conversion_task import (
     TargetFrameworkPayload,
 )
@@ -25,7 +24,6 @@ from src.api.v1.schemas.tasks.evaluation_task import (
     ImagePrediction,
     PredictionForThreshold,
 )
-from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.configs.settings import settings
 from src.enums.conversion import EvaluationTargetFramework, SourceFramework, TargetFramework
 from src.enums.device import DeviceName, SoftwareVersion
@@ -36,6 +34,8 @@ from src.exceptions.conversion import ConversionTaskNotFoundException
 from src.exceptions.evaluation import EvaluationTaskAlreadyExistsException
 from src.models.conversion import ConversionTask
 from src.models.evaluation import EvaluationDataset, EvaluationTask
+from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
+from src.modules.converter.v2.converter import ConverterV2
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_task_repository
 from src.repositories.model import model_repository
@@ -62,8 +62,7 @@ class EvaluationTaskService:
         Returns:
             List[SupportedDeviceResponse]: List of supported devices grouped by framework
         """
-        netspresso = NetsPresso(api_key=api_key)
-        converter = netspresso.converter_v2()
+        converter = ConverterV2(api_key=api_key)
         supported_options = converter.get_supported_options(framework=framework)
 
         supported_framework = [TargetFramework.TENSORFLOW_LITE]

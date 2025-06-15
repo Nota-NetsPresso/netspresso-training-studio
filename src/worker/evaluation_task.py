@@ -5,20 +5,20 @@ from typing import List
 
 from celery import chain, signature
 
-from netspresso.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
-from netspresso.trainer.optimizers.optimizer_manager import OptimizerManager
-from netspresso.trainer.schedulers.scheduler_manager import SchedulerManager
-from netspresso.trainer.storage.dataforge import Split
-from netspresso.utils.db.session import SessionLocal
 from src.api.v1.schemas.tasks.dataset import DatasetCreate
 from src.api.v1.schemas.tasks.environment import EnvironmentCreate
 from src.api.v1.schemas.tasks.hyperparameter import HyperparameterCreate
 from src.api.v1.schemas.tasks.training_task import TrainingCreate
+from src.core.db.session import SessionLocal
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
 from src.models.base import generate_uuid
-from src.moduless.evaluator.evaluator import Evaluator
-from src.moduless.trainer.trainer import Trainer
+from src.modules.evaluator.evaluator import Evaluator
+from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
+from src.modules.trainer.optimizers.optimizer_manager import OptimizerManager
+from src.modules.trainer.schedulers.scheduler_manager import SchedulerManager
+from src.modules.trainer.storage.dataforge import Split
+from src.modules.trainer.trainer import Trainer
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_dataset_repository
 from src.worker.celery_app import celery_app

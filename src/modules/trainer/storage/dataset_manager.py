@@ -15,7 +15,7 @@ from netspresso.clients.dataforge.schemas.response_body import (
     DatasetVersionResponse,
 )
 from netspresso.exceptions.dataset import DatasetDownloadError, DatasetNotFoundError, DatasetPrepareError
-from netspresso.trainer.storage.dataforge import Split, dataforge
+from src.modules.trainer.storage.dataforge import Split, dataforge
 
 
 class DatasetManager:

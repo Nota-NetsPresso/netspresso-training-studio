@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from netspresso.trainer.models.base import ArchitectureConfig, ModelConfig
-from netspresso.trainer.models.mobilenetv3 import MobileNetV3SmallArchitectureConfig
+from src.modules.trainer.models.base import ArchitectureConfig, ModelConfig
+from src.modules.trainer.models.mobilenetv3 import MobileNetV3SmallArchitectureConfig
 
 
 @dataclass

@@ -7,14 +7,14 @@ from typing import Dict, List, Tuple
 from loguru import logger
 from tqdm import tqdm
 
-from netspresso.clients.dataforge.main import DataForgeClient
-from netspresso.clients.dataforge.schemas.response_body import (
+from netspresso.clients.dataforge.storage import S3Provider
+from src.clients.dataforge.main import DataForgeClient
+from src.clients.dataforge.schemas.response_body import (
     DatasetResponse,
     DatasetsResponse,
     DatasetVersionResponse,
     DatasetVersionsResponse,
 )
-from netspresso.clients.dataforge.storage import S3Provider
 
 
 class Split(str, Enum):

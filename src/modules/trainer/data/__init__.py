@@ -1,4 +1,4 @@
-from netspresso.trainer.data.data import (
+from src.modules.trainer.data.data import (
     DatasetConfig,
     ImageLabelPathConfig,
     LocalClassificationDatasetConfig,

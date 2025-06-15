@@ -1,12 +1,12 @@
 from typing import Dict, List
 
-from netspresso.trainer.models.base import CheckpointConfig, ModelConfig
-from netspresso.trainer.models.efficientformer import (
+from src.modules.trainer.models.base import CheckpointConfig, ModelConfig
+from src.modules.trainer.models.efficientformer import (
     ClassificationEfficientFormerModelConfig,
     DetectionEfficientFormerModelConfig,
     SegmentationEfficientFormerModelConfig,
 )
-from netspresso.trainer.models.mixnet import (
+from src.modules.trainer.models.mixnet import (
     ClassificationMixNetLargeModelConfig,
     ClassificationMixNetMediumModelConfig,
     ClassificationMixNetSmallModelConfig,
@@ -17,31 +17,31 @@ from netspresso.trainer.models.mixnet import (
     SegmentationMixNetMediumModelConfig,
     SegmentationMixNetSmallModelConfig,
 )
-from netspresso.trainer.models.mobilenetv3 import (
+from src.modules.trainer.models.mobilenetv3 import (
     ClassificationMobileNetV3LargeModelConfig,
     ClassificationMobileNetV3SmallModelConfig,
     DetectionMobileNetV3SmallModelConfig,
     SegmentationMobileNetV3SmallModelConfig,
 )
-from netspresso.trainer.models.mobilevit import ClassificationMobileViTModelConfig
-from netspresso.trainer.models.pidnet import PIDNetModelConfig
-from netspresso.trainer.models.resnet import (
+from src.modules.trainer.models.mobilevit import ClassificationMobileViTModelConfig
+from src.modules.trainer.models.pidnet import PIDNetModelConfig
+from src.modules.trainer.models.resnet import (
     ClassificationResNet18ModelConfig,
     ClassificationResNet34ModelConfig,
     ClassificationResNet50ModelConfig,
     DetectionResNet50ModelConfig,
     SegmentationResNet50ModelConfig,
 )
-from netspresso.trainer.models.rtmpose import PoseEstimationMobileNetV3SmallModelConfig
-from netspresso.trainer.models.segformer import SegmentationSegFormerB0ModelConfig
-from netspresso.trainer.models.vit import ClassificationViTTinyModelConfig
-from netspresso.trainer.models.yolo import DetectionYoloFastestV2ModelConfig
-from netspresso.trainer.models.yolov9 import (
+from src.modules.trainer.models.rtmpose import PoseEstimationMobileNetV3SmallModelConfig
+from src.modules.trainer.models.segformer import SegmentationSegFormerB0ModelConfig
+from src.modules.trainer.models.vit import ClassificationViTTinyModelConfig
+from src.modules.trainer.models.yolo import DetectionYoloFastestV2ModelConfig
+from src.modules.trainer.models.yolov9 import (
     DetectionYoloV9CModelConfig,
     DetectionYoloV9MModelConfig,
     DetectionYoloV9SModelConfig,
 )
-from netspresso.trainer.models.yolox import (
+from src.modules.trainer.models.yolox import (
     DetectionYoloXLModelConfig,
     DetectionYoloXMModelConfig,
     DetectionYoloXSModelConfig,
