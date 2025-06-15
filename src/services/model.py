@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import HTTPException
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.v1.schemas.model import ModelPayload, PresignedUrl
@@ -12,6 +13,7 @@ from src.exceptions.auth import UnauthorizedUserAccessException
 from src.exceptions.model import ModelCannotBeDeletedException
 from src.models.base import generate_uuid
 from src.models.model import Model
+from src.repositories.compression import compression_task_repository
 from src.repositories.model import model_repository
 from src.services.benchmark_task import benchmark_task_service
 from src.services.compression_task import compression_task_service
@@ -194,7 +196,8 @@ class ModelService:
         model = model_repository.soft_delete(db=db, model=model)
 
         if model.type == ModelType.COMPRESSED_MODEL:
-            compression_task = compression_task_service.get_compression_task_by_model_id(
+            logger.info(f"Deleting compressed model: {model_id}")
+            compression_task = compression_task_repository.get_by_model_id(
                 db=db,
                 model_id=model_id
             )
@@ -202,7 +205,10 @@ class ModelService:
                 db=db,
                 model_id=compression_task.input_model_id
             )
-            compression_task_service.soft_delete_compression_task(db=db, compression_task=compression_task)
+            try:
+                compression_task_service.soft_delete_compression_task(db=db, compression_task=compression_task)
+            except Exception as e:
+                logger.error(f"Error deleting compression task: {e}")
         else:
             training_task = training_task_service.get_training_task_by_model_id(db=db, model_id=model_id)
 
