@@ -1,6 +1,6 @@
 from celery import chain
 
-from src.modules.clients.launcher.v2.main import launcher_client_v2
+from src.modules.converter.v2.converter import ConverterV2
 from src.worker.celery_app import celery_app
 
 POLLING_INTERVAL = 30  # seconds
@@ -21,9 +21,8 @@ def convert_model(
     input_model_id: str = None,
     conversion_task_id: str = None,
 ):
-    netspresso = NetsPresso(api_key=api_key)
+    converter = ConverterV2(api_key=api_key)
 
-    converter = netspresso.converter_v2()
     task_id = converter.convert_model(
         input_model_path=input_model_path,
         output_dir=output_dir,
@@ -44,9 +43,7 @@ def convert_model(
 
 @celery_app.task
 def poll_conversion_status(api_key: str, task_id: str):
-    netspresso = NetsPresso(api_key=api_key)
-
-    converter = netspresso.converter_v2()
+    converter = ConverterV2(api_key=api_key)
     status_updated = converter.update_conversion_task_status(task_id)
 
     if not status_updated:
