@@ -169,6 +169,9 @@ class TrainingTaskService:
             project_id=project_id,
         )
 
+        for model in models:
+            logger.info(f"Model: {model.name}, is_deleted: {model.is_deleted}")
+
         # Extract existing names from models and count occurrences of base name
         base_name_count = sum(
             1
