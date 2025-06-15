@@ -263,12 +263,17 @@ class TrainingTaskService:
 
         # Determine training type
         training_type = TrainingType.RETRAINING if training_in.input_model_id else TrainingType.TRAINING
+        if training_in.pretrained_model:
+            pretrained_model = training_in.pretrained_model
+        else:
+            training_task = training_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+            pretrained_model = training_task.pretrained_model
 
         # Create training task
         training_task_id = generate_uuid(entity="task")
         training_task = TrainingTask(
             task_id=training_task_id,
-            pretrained_model=training_in.pretrained_model,
+            pretrained_model=pretrained_model,
             task=training_in.task,
             framework="pytorch",
             input_shapes=[InputShape(batch=1, channel=3, dimension=[img_size, img_size]).__dict__],
