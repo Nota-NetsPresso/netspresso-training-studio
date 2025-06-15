@@ -54,7 +54,7 @@ def evaluate_model_task(
     """
     session = SessionLocal()
     try:
-        from app.services.training_task import train_task_service
+        from src.services.training_task import train_task_service
 
         netspresso = NetsPresso(api_key=api_key)
         training_task = train_task_service.get_training_task(db=session, task_id=training_task_id, api_key=api_key)
