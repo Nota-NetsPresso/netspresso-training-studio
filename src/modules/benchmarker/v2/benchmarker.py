@@ -193,7 +193,6 @@ class BenchmarkerV2(NetsPressoBase):
         software_version: Union[str, SoftwareVersion],
         data_type: Union[str, DataType],
         input_model_id: Optional[str] = None,
-        model_id: Optional[str] = None,
         benchmark_task_id: Optional[str] = None,
     ) -> BenchmarkTask:
         with get_db_session() as db:
@@ -206,7 +205,6 @@ class BenchmarkerV2(NetsPressoBase):
                     precision=data_type,
                     status=TaskStatus.NOT_STARTED,
                     input_model_id=input_model_id,
-                    model_id=model_id,
                     user_id=self.user_info.user_id,
                 )
             else:
@@ -217,7 +215,6 @@ class BenchmarkerV2(NetsPressoBase):
                     precision=data_type,
                     status=TaskStatus.NOT_STARTED,
                     input_model_id=input_model_id,
-                    model_id=model_id,
                     user_id=self.user_info.user_id,
                 )
             benchmark_task = benchmark_task_repository.save(db=db, model=benchmark_task)
@@ -280,19 +277,12 @@ class BenchmarkerV2(NetsPressoBase):
             # input_model_path를 local_path로 업데이트
             input_model_path = str(local_path)
 
-        model = self.save_model(
-            model_name=f"{input_model.name}_benchmarked",
-            project_id=input_model.project_id,
-            user_id=self.user_info.user_id,
-            object_path=input_model_path,
-        )
         benchmark_task = self.create_benchmark_task(
             framework=framework,
             device_name=target_device_name,
             software_version=target_software_version,
             data_type=data_type,
             input_model_id=input_model_id,
-            model_id=model.model_id,
             benchmark_task_id=benchmark_task_id,
         )
 
