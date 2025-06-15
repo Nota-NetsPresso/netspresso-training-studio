@@ -15,6 +15,7 @@ from src.enums.task import TaskStatus
 from src.models.benchmark import BenchmarkResult, BenchmarkTask
 from src.models.conversion import ConversionTask
 from src.models.model import Model
+from src.modules.base import NetsPressoBase
 from src.modules.clients.auth import TokenHandler
 from src.modules.clients.auth.client import auth_client
 from src.modules.clients.auth.response_body import UserResponse
@@ -32,10 +33,10 @@ from src.zenko.storage_handler import ObjectStorageHandler
 storage_handler = ObjectStorageHandler()
 BUCKET_NAME = "model"
 
-class BenchmarkerV2:
+class BenchmarkerV2(NetsPressoBase):
     def __init__(self, api_key: str, verify_ssl: bool = True) -> None:
         """Initialize the Compressor."""
-        self.token_handler = TokenHandler(api_key=api_key, verify_ssl=verify_ssl)
+        super().__init__(token_handler=TokenHandler(api_key=api_key, verify_ssl=verify_ssl))
         self.user_info = self.get_user()
 
     def get_user(self) -> UserResponse:
@@ -330,7 +331,7 @@ class BenchmarkerV2:
                 software_version=target_software_version,
             )
 
-            benchmark_task.benchmark_task_id = benchmark_response.data.benchmark_task_id
+            benchmark_task.benchmark_task_uuid = benchmark_response.data.benchmark_task_id
             benchmark_task = self._save_benchmark_task(benchmark_task)
             benchmark_task = self.create_benchmark_result(benchmark_task, validate_model_response.data.file_size_in_mb)
 
@@ -452,7 +453,7 @@ class BenchmarkerV2:
                     logger.error(f"Benchmark task {task_id} not found")
                     return True
 
-                launcher_status = self.get_benchmark_task(benchmark_task.benchmark_task_id)
+                launcher_status = self.get_benchmark_task(benchmark_task.benchmark_task_uuid)
                 status_updated = False
 
                 if launcher_status.status == TaskStatusForDisplay.FINISHED:
