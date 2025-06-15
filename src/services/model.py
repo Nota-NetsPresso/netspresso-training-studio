@@ -13,6 +13,7 @@ from src.exceptions.auth import UnauthorizedUserAccessException
 from src.exceptions.model import ModelCannotBeDeletedException
 from src.models.base import generate_uuid
 from src.models.model import Model
+from src.repositories.compression import compression_task_repository
 from src.repositories.model import model_repository
 from src.services.benchmark_task import benchmark_task_service
 from src.services.compression_task import compression_task_service
@@ -196,7 +197,7 @@ class ModelService:
 
         if model.type == ModelType.COMPRESSED_MODEL:
             logger.info(f"Deleting compressed model: {model_id}")
-            compression_task = compression_task_service.get_compression_task_by_model_id(
+            compression_task = compression_task_repository.get_by_model_id(
                 db=db,
                 model_id=model_id
             )
