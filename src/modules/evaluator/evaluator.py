@@ -156,7 +156,8 @@ class Evaluator:
             try:
                 logger.info(f"Getting conversion task for model {model_id}")
                 conversion_task = conversion_task_repository.get_by_model_id(db=db, model_id=model_id)
-            except ConversionTaskNotFoundException:
+            except Exception as e:
+                logger.error(f"Error getting conversion task for model {model_id}: {e}")
                 logger.info(f"No conversion task found for model {model_id}. Treating as direct ONNX model.")
                 # No conversion task for ONNX models
 
