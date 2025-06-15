@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Dict, Union
 
-from netspresso.enums import QuantizationMode, QuantizationPrecision, SimilarityMetric, TaskType
-from netspresso.metadata.common import BaseMetadata, ModelInfo
+from src.enums.quantize import QuantizationMode, QuantizationPrecision, SimilarityMetric
+from src.enums.task import RetrievalTaskType
+from src.modules.clients.metadata.common import BaseMetadata, ModelInfo
 
 
 @dataclass
@@ -20,7 +21,7 @@ class QuantizeInfo:
 
 @dataclass
 class QuantizerMetadata(BaseMetadata):
-    task_type: TaskType = TaskType.QUANTIZE
+    task_type: RetrievalTaskType = RetrievalTaskType.QUANTIZE
     input_model_path: str = ""
     quantized_model_path: str = ""
     recommendation_result_path: str = ""

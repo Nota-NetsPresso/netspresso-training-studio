@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from netspresso.enums.metadata import TaskType
-from netspresso.enums.model import DataType, Framework
-from netspresso.metadata.common import AvailableOption, BaseMetadata, InputShape
-from netspresso.metadata.trainer import TrainingInfo
+from src.enums.model import DataType, Framework
+from src.enums.task import RetrievalTaskType
+from src.modules.clients.metadata.common import AvailableOption, BaseMetadata, InputShape
+from src.modules.clients.metadata.trainer import TrainingInfo
 
 
 @dataclass
@@ -44,7 +44,7 @@ class Results:
 
 @dataclass
 class CompressorMetadata(BaseMetadata):
-    task_type: TaskType = TaskType.COMPRESS
+    task_type: RetrievalTaskType = RetrievalTaskType.COMPRESS
     input_model_path: str = ""
     compressed_model_path: str = ""
     compressed_onnx_model_path: str = ""
