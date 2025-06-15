@@ -1,5 +1,6 @@
 from fastapi import status
 
+from src.enums.conversion import TargetFramework
 from src.enums.exception import Origin
 from src.exceptions.base import AdditionalData, ExceptionBase
 
@@ -67,4 +68,37 @@ class InvalidEvaluationDatasetException(ExceptionBase):
             status_code=status.HTTP_400_BAD_REQUEST,
             name=self.__class__.__name__,
             message=f"The dataset with ID '{dataset_id}' is not valid for evaluation.",
+        )
+
+
+class UnsupportedEvaluationFrameworkException(ExceptionBase):
+    def __init__(self, framework: TargetFramework):
+        message = f"The framework '{framework}' is not supported for evaluation."
+        super().__init__(
+            data=AdditionalData(origin=Origin.REPOSITORY),
+            error_code="EVALUATION40002",
+            name=self.__class__.__name__,
+            message=message,
+        )
+
+
+class EvaluationResultFileNotFoundException(ExceptionBase):
+    def __init__(self, task_id: str):
+        message = f"The evaluation result file for task '{task_id}' does not exist."
+        super().__init__(
+            data=AdditionalData(origin=Origin.REPOSITORY, task_id=task_id),
+            error_code="EVALUATION40404",
+            name=self.__class__.__name__,
+            message=message,
+        )
+
+
+class EvaluationDownloadURLGenerationException(ExceptionBase):
+    def __init__(self, task_id: str, error_details: str):
+        message = f"Failed to generate download URL for evaluation task '{task_id}': {error_details}"
+        super().__init__(
+            data=AdditionalData(origin=Origin.REPOSITORY, task_id=task_id, error_details=error_details),
+            error_code="EVALUATION50000",
+            name=self.__class__.__name__,
+            message=message,
         )

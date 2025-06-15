@@ -313,7 +313,7 @@ class TrainingTaskService:
 
         return TrainingCreatePayload(task_id=training_task.task_id)
 
-    def get_training_task(self, db: Session, task_id: str, api_key: str) -> TrainingPayload:
+    def get_training_task(self, db: Session, task_id: str, token: str) -> TrainingPayload:
         """Get training task by task ID."""
         training_task = training_task_repository.get_by_task_id(db=db, task_id=task_id)
 
