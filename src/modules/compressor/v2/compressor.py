@@ -301,7 +301,7 @@ class CompressorV2:
             return enum_obj.value
         return str(enum_obj)
 
-    def recommendation_compression_from_id(
+    def recommendation_compression(
         self,
         input_model_id: str,
         compression_method: CompressionMethod,
@@ -495,7 +495,7 @@ class CompressorV2:
             )
 
         except Exception as e:
-            logger.error(f"Error in recommendation_compression_from_id: {e}")
+            logger.error(f"Error in recommendation_compression: {e}")
             compression_task.status = TaskStatus.ERROR
             compression_task.error_detail = str(e) if e.args else "Unknown error"
             raise e

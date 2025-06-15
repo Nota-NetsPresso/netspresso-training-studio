@@ -1,7 +1,6 @@
-from celery import chain
 from loguru import logger
 
-from src.modules.clients.launcher.v2.main import launcher_client_v2
+from src.modules.compressor.v2.compressor import CompressorV2
 from src.worker.celery_app import celery_app
 
 POLLING_INTERVAL = 30  # seconds
@@ -18,12 +17,10 @@ def compress_model(
     input_model_id: str,
     compression_task_id: str,
 ):
-    netspresso = NetsPresso(api_key=api_key)
-
-    compressor = netspresso.compressor_v2()
+    compressor = CompressorV2(api_key=api_key)
 
     try:
-        task_id = compressor.recommendation_compression_from_id(
+        task_id = compressor.recommendation_compression(
             compression_method=method,
             recommendation_method=recommendation_method,
             recommendation_ratio=ratio,
