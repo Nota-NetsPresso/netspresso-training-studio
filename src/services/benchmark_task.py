@@ -19,12 +19,13 @@ from src.api.v1.schemas.tasks.device import (
     SupportedDeviceForBenchmarkPayload,
     TargetDevicePayload,
 )
-from src.modules.clients.enums.task import TaskStatusForDisplay
-from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.enums.model import Framework, ModelType
 from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
 from src.models.benchmark import BenchmarkTask
+from src.modules.benchmarker.v2.benchmarker import BenchmarkerV2
+from src.modules.clients.enums.task import TaskStatusForDisplay
+from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.repositories.base import Order, TimeSort
 from src.repositories.benchmark import benchmark_task_repository
 from src.repositories.conversion import conversion_task_repository
@@ -70,11 +71,10 @@ class BenchmarkTaskService:
         self, db: Session, model_id: str, api_key: str
     ) -> List[SupportedDeviceForBenchmarkPayload]:
         """Get list of supported devices for benchmark"""
-        netspresso = NetsPresso(api_key=api_key)
-        benchmarker = netspresso.benchmarker_v2()
+        benchmarker = BenchmarkerV2(api_key=api_key)
 
         model = model_repository.get_by_model_id(db=db, model_id=model_id)
-        if model.type not in [SubFolder.TRAINED_MODELS, SubFolder.COMPRESSED_MODELS]:
+        if model.type not in [ModelType.TRAINED_MODEL, ModelType.COMPRESSED_MODEL]:
             raise ValueError("Model is not a trained or compressed model")
 
         unique_conversions = conversion_task_repository.get_unique_completed_tasks(db=db, model_id=model_id)
@@ -201,11 +201,10 @@ class BenchmarkTaskService:
 
     def cancel_benchmark_task(self, db: Session, task_id: str, api_key: str) -> BenchmarkPayload:
         """Cancel benchmark task"""
-        netspresso = NetsPresso(api_key=api_key)
-        benchmarker = netspresso.benchmarker_v2()
+        benchmarker = BenchmarkerV2(api_key=api_key)
         benchmark_task = benchmark_task_repository.get_by_task_id(db, task_id)
 
-        launcher_status = benchmarker.cancel_benchmark_task(benchmark_task.benchmark_task_id)
+        launcher_status = benchmarker.cancel_benchmark_task(benchmark_task.benchmark_task_uuid)
 
         if launcher_status.status == TaskStatusForDisplay.USER_CANCEL:
             benchmark_task.status = TaskStatus.STOPPED
@@ -221,7 +220,7 @@ class BenchmarkTaskService:
         benchmark_task = benchmark_task_repository.soft_delete(db=db, model=benchmark_task)
 
         # Delete benchmarked model from model repository
-        model = model_repository.get_by_model_id(db=db, model_id=benchmark_task.model_id)
+        model = model_repository.get_by_model_id(db=db, model_id=benchmark_task.input_model_id)
         model = model_repository.soft_delete(db=db, model=model)
 
         return self._create_benchmark_payload(benchmark_task)
