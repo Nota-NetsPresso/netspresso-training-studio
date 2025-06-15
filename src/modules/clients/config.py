@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 
-from src.enums.config import EndPointProperty, EnvironmentType, ServiceModule, ServiceName
+from src.modules.clients.enums.config import EndPointProperty, EnvironmentType, ServiceModule, ServiceName
 
 BASE_DIR = Path(__file__).resolve().parent
 config_parser = configparser.ConfigParser()
