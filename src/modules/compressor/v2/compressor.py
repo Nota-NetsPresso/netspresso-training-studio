@@ -16,6 +16,7 @@ from src.exceptions.compression import FailedUploadModelException
 from src.models.compression import CompressionModelResult, CompressionTask
 from src.models.model import Model
 from src.models.training import TrainingTask
+from src.modules.base import NetsPressoBase
 from src.modules.clients.auth import TokenHandler
 from src.modules.clients.auth.client import auth_client
 from src.modules.clients.auth.response_body import UserResponse
@@ -46,10 +47,10 @@ from src.zenko.storage_handler import ObjectStorageHandler
 storage_handler = ObjectStorageHandler()
 BUCKET_NAME = "model"
 
-class CompressorV2:
+class CompressorV2(NetsPressoBase):
     def __init__(self, api_key: str, verify_ssl: bool = True) -> None:
         """Initialize the Compressor."""
-        self.token_handler = TokenHandler(api_key=api_key, verify_ssl=verify_ssl)
+        super().__init__(token_handler=TokenHandler(api_key=api_key, verify_ssl=verify_ssl))
         self.user_info = self.get_user()
 
     def get_user(self) -> UserResponse:
