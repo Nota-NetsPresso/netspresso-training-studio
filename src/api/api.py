@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from src.api.v1.endpoints import (
+    compression_task,
     evaluation_task,
     model,
     project,
@@ -16,3 +17,4 @@ api_router.include_router(model.router, prefix="/models", tags=["model"])
 api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(training_task.router, prefix="/tasks", tags=["training"])
 api_router.include_router(evaluation_task.router, prefix="/tasks", tags=["evaluation"])
+api_router.include_router(compression_task.router, prefix="/tasks", tags=["compression"])
