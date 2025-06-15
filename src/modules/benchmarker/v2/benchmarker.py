@@ -437,14 +437,20 @@ class BenchmarkerV2(NetsPressoBase):
         """
         try:
             with get_db_session() as db:
-                # 매번 새 세션에서 객체를 가져옴
                 benchmark_task = benchmark_task_repository.get_by_task_id(db=db, task_id=task_id)
                 if not benchmark_task:
                     logger.error(f"Benchmark task {task_id} not found")
                     return True
 
-                launcher_status = self.get_benchmark_task(benchmark_task.benchmark_task_uuid)
                 status_updated = False
+
+                if not benchmark_task.benchmark_task_uuid:
+                    benchmark_task.status = TaskStatus.COMPLETED
+                    benchmark_task = benchmark_task_repository.save(db=db, model=benchmark_task)
+                    logger.info(f"Benchmark task {task_id} status updated to {benchmark_task.status}")
+                    return True
+
+                launcher_status = self.get_benchmark_task(benchmark_task.benchmark_task_uuid)
 
                 if launcher_status.status == TaskStatusForDisplay.FINISHED:
                     benchmark_task.status = TaskStatus.COMPLETED
@@ -473,13 +479,13 @@ class BenchmarkerV2(NetsPressoBase):
                     status_updated = True
 
                 if status_updated:
-                    # 현재 세션에서 변경사항 저장
                     db.add(benchmark_task)
                     db.commit()
                     logger.info(f"Benchmark task {task_id} status updated to {benchmark_task.status}")
 
                 return status_updated
+
         except Exception as e:
             logger.error(f"Error updating benchmark task status: {e}")
-            # 오류가 발생해도 태스크가 계속 재시도되지 않도록 True 반환
+
             return True
