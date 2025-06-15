@@ -1,6 +1,6 @@
-from netspresso.trainer.training.environment import EnvironmentConfig
-from netspresso.trainer.training.logging import LoggingConfig
-from netspresso.trainer.training.training import (
+from src.modules.trainer.training.environment import EnvironmentConfig
+from src.modules.trainer.training.logging import LoggingConfig
+from src.modules.trainer.training.training import (
     ClassificationScheduleConfig,
     DetectionScheduleConfig,
     ScheduleConfig,

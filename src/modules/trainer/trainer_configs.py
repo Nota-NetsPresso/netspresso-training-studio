@@ -5,10 +5,10 @@ from typing import Union
 
 from omegaconf import OmegaConf
 
-from netspresso.trainer.augmentations import AugmentationConfig
-from netspresso.trainer.data import DatasetConfig
-from netspresso.trainer.models import ModelConfig
-from netspresso.trainer.training import EnvironmentConfig, LoggingConfig, ScheduleConfig
+from src.modules.trainer.augmentations import AugmentationConfig
+from src.modules.trainer.data import DatasetConfig
+from src.modules.trainer.models import ModelConfig
+from src.modules.trainer.training import EnvironmentConfig, LoggingConfig, ScheduleConfig
 
 
 class TrainerConfigs:

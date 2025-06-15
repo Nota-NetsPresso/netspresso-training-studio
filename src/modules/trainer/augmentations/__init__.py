@@ -1,4 +1,4 @@
-from netspresso.trainer.augmentations.augmentation import (
+from src.modules.trainer.augmentations.augmentation import (
     AugmentationConfig,
     CenterCrop,
     ClassificationAugmentationConfig,

@@ -1,7 +1,5 @@
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
 
 import cv2
 import numpy as np
@@ -9,14 +7,15 @@ from loguru import logger
 from netspresso_inference_package.inference.inference_service import InferenceService
 from omegaconf import OmegaConf
 
-from netspresso.enums import Runtime, Task
-from netspresso.inferencer.postprocessors.classification import ClassificationPostprocessor
-from netspresso.inferencer.postprocessors.detection import DetectionPostprocessor
-from netspresso.inferencer.postprocessors.segmentation import SegmentationPostprocessor
-from netspresso.inferencer.preprocessors.base import Preprocessor
-from netspresso.inferencer.visualizers.classification import ClassificationVisualizer
-from netspresso.inferencer.visualizers.detection import DetectionVisualizer
-from netspresso.inferencer.visualizers.segmentation import SegmentationVisualizer
+from src.enums.inference import Runtime
+from src.enums.training import Task
+from src.modules.inferencer.postprocessors.classification import ClassificationPostprocessor
+from src.modules.inferencer.postprocessors.detection import DetectionPostprocessor
+from src.modules.inferencer.postprocessors.segmentation import SegmentationPostprocessor
+from src.modules.inferencer.preprocessors.base import Preprocessor
+from src.modules.inferencer.visualizers.classification import ClassificationVisualizer
+from src.modules.inferencer.visualizers.detection import DetectionVisualizer
+from src.modules.inferencer.visualizers.segmentation import SegmentationVisualizer
 
 
 class BaseInferencer:

@@ -1,12 +1,12 @@
-from netspresso.enums.train import Scheduler
-from netspresso.trainer.schedulers.schedulers import (
+from src.enums.training import Scheduler
+from src.modules.trainer.schedulers.schedulers import (
+    BaseScheduler,
     CosineAnnealingLRWithCustomWarmUp,
     CosineAnnealingWarmRestartsWithCustomWarmUp,
     MultiStepLR,
     PolynomialLRWithWarmUp,
     StepLR,
 )
-from src.moduless.trainer.schedulers.schedulers import BaseScheduler
 
 
 class SchedulerManager:
