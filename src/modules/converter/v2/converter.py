@@ -742,6 +742,12 @@ class ConverterV2(NetsPressoBase):
                 logger.error(f"Conversion task {task_id} not found")
                 return True
 
+            if not conversion_task.convert_task_uuid:
+                conversion_task.status = TaskStatus.COMPLETED
+                conversion_task_repository.save(db, conversion_task)
+                logger.info(f"Conversion task {task_id} status updated to {conversion_task.status}")
+                return True
+
             launcher_status = self.get_conversion_task(conversion_task.convert_task_uuid)
             status_updated = False
 
