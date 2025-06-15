@@ -125,17 +125,14 @@ class ConversionTaskService:
         input_model_dir = Path(model.object_path)
 
         input_model_path = input_model_dir / "model.onnx"
-        output_dir = input_model_dir / "converted"
         logger.info(f"Input model path: {input_model_path}")
         logger.info(f"Conversion Info: {conversion_in.model_dump()}")
-        logger.info(f"Output dir: {output_dir}")
 
         conversion_task_id = generate_uuid(entity="task")
         _ = convert_model.apply_async(
             kwargs={
                 "api_key": api_key,
                 "input_model_path": input_model_path.as_posix(),
-                "output_dir": output_dir.as_posix(),
                 "target_framework": conversion_in.framework,
                 "target_device_name": conversion_in.device_name,
                 "target_data_type": conversion_in.precision,

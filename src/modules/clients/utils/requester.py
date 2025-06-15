@@ -11,20 +11,8 @@ class Requester:
     def __make_response(response: Response) -> Response:
         if response.ok:
             return response
-
-        try:
-            error_message = response.json()
-        except ValueError:
-            error_message = response.text
-
-        exception_map = {
-            500: InternalServerErrorException,
-            504: GatewayTimeoutException,
-        }
-
-        exception_class = exception_map.get(response.status_code, UnexpetedException)
-
-        raise exception_class(error_log=error_message, status_code=response.status_code) from None
+        else:
+            raise Exception(response.json())
 
     @staticmethod
     def get(url: str, params: Optional[dict] = None, headers=None, **kwargs) -> Response:

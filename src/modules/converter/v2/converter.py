@@ -303,8 +303,8 @@ class ConverterV2(NetsPressoBase):
             if target_data_type == DataType.INT8:
                 if input_model.type == ModelType.COMPRESSED_MODEL:
                     compression_task = self.get_compression_task(model_id=input_model.model_id)
-                    input_model = self.get_input_model(input_model_id=compression_task.input_model_id, user_id=self.user_info.user_id)
-                    remote_calibration_dataset_path = Path(input_model.object_path) / "calibration_dataset.npy"
+                    original_input_model = self.get_input_model(input_model_id=compression_task.input_model_id, user_id=self.user_info.user_id)
+                    remote_calibration_dataset_path = Path(original_input_model.object_path) / "calibration_dataset.npy"
                 else:
                     remote_calibration_dataset_path = Path(input_model.object_path) / "calibration_dataset.npy"
                 local_calibration_dataset_path = download_dir / "calibration_dataset.npy"
@@ -619,7 +619,6 @@ class ConverterV2(NetsPressoBase):
     def convert_model(
         self,
         input_model_path: str,
-        output_dir: str,
         target_framework: Union[str, TargetFramework],
         target_device_name: Union[str, DeviceName],
         target_data_type: Union[str, DataType] = DataType.FP16,
@@ -670,7 +669,6 @@ class ConverterV2(NetsPressoBase):
                 dataset_path=dataset_path,
                 wait_until_done=wait_until_done,
                 sleep_interval=sleep_interval,
-                output_dir=output_dir,
                 conversion_task_id=conversion_task_id,
             )
         elif input_model_path:
@@ -684,7 +682,6 @@ class ConverterV2(NetsPressoBase):
                 dataset_path=dataset_path,
                 wait_until_done=wait_until_done,
                 sleep_interval=sleep_interval,
-                output_dir=output_dir,
                 project_id=project_id,
             )
         else:

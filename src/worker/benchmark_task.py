@@ -34,6 +34,8 @@ def benchmark_model(
 
 @celery_app.task
 def poll_benchmark_status(api_key: str, task_id: str):
+    if not task_id:
+        return
     benchmarker = BenchmarkerV2(api_key=api_key)
     status_updated = benchmarker.update_benchmark_task_status(task_id)
 
