@@ -2,8 +2,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header
-from src.api.v1.schemas.device import SupportedDevicesForBenchmarkResponse
-from src.api.v1.schemas.task.benchmark.benchmark_task import BenchmarkCreate, BenchmarkCreateResponse, BenchmarkResponse
+from src.api.v1.schemas.tasks.benchmark_task import (
+    BenchmarkCreate,
+    BenchmarkCreateResponse,
+    BenchmarkResponse,
+)
+from src.api.v1.schemas.tasks.device import SupportedDevicesForBenchmarkResponse
+from src.core.db.session import get_db
 from src.services.benchmark_task import benchmark_task_service
 
 router = APIRouter()
