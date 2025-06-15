@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import HTTPException
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.v1.schemas.model import ModelPayload, PresignedUrl
@@ -194,6 +195,7 @@ class ModelService:
         model = model_repository.soft_delete(db=db, model=model)
 
         if model.type == ModelType.COMPRESSED_MODEL:
+            logger.info(f"Deleting compressed model: {model_id}")
             compression_task = compression_task_service.get_compression_task_by_model_id(
                 db=db,
                 model_id=model_id
