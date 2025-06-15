@@ -9,7 +9,7 @@ from src.modules.clients.metadata import common
 from src.modules.clients.metadata.common import AvailableOption, SoftwareVersions
 from src.modules.clients.utils.system import ENV_STR
 
-version = (Path(__file__).parent.parent.parent.parent.parent / "VERSION").read_text().strip()
+version = (Path(__file__).parent.parent.parent.parent.parent.parent / "VERSION").read_text().strip()
 
 
 class Order(str, Enum):
