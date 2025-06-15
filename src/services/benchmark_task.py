@@ -52,7 +52,6 @@ class BenchmarkTaskService:
         """Create benchmark payload from task"""
         return BenchmarkPayload(
             task_id=benchmark_task.task_id,
-            model_id=benchmark_task.model_id,
             framework=TargetFrameworkPayload(name=benchmark_task.framework),
             device=TargetDevicePayload(name=benchmark_task.device_name),
             software_version=SoftwareVersionPayload(name=benchmark_task.software_version) if benchmark_task.software_version else None,

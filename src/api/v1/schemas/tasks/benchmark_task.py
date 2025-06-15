@@ -26,7 +26,6 @@ class BenchmarkPayload(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     task_id: str
-    model_id: Optional[str] = None
     framework: TargetFrameworkPayload
     device: TargetDevicePayload
     software_version: Optional[SoftwareVersionPayload] = None
