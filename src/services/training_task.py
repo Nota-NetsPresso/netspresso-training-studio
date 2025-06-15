@@ -2,6 +2,7 @@ import copy
 from pathlib import Path
 from typing import Any, Dict, List
 
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.v1.schemas.tasks.dataset import LocalTrainingDatasetPayload
@@ -264,8 +265,10 @@ class TrainingTaskService:
         # Determine training type
         training_type = TrainingType.RETRAINING if training_in.input_model_id else TrainingType.TRAINING
         if training_in.pretrained_model:
+            logger.info(f"Training with pretrained model: {training_in.pretrained_model}")
             pretrained_model = training_in.pretrained_model
         else:
+            logger.info(f"Training with input model: {training_in.input_model_id}")
             training_task = training_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
             pretrained_model = training_task.pretrained_model
 
