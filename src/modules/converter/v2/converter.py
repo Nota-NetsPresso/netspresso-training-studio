@@ -17,6 +17,7 @@ from src.models.compression import CompressionTask
 from src.models.conversion import ConversionTask
 from src.models.model import Model
 from src.models.project import Project
+from src.modules.base import NetsPressoBase
 from src.modules.clients.auth import TokenHandler, auth_client
 from src.modules.clients.auth.response_body import UserResponse
 from src.modules.clients.enums.task import TaskStatusForDisplay
@@ -34,10 +35,10 @@ from src.zenko.storage_handler import ObjectStorageHandler
 storage_handler = ObjectStorageHandler()
 BUCKET_NAME = "model"
 
-class ConverterV2:
+class ConverterV2(NetsPressoBase):
     def __init__(self, api_key: str, verify_ssl: bool = True) -> None:
         """Initialize the Compressor."""
-        self.token_handler = TokenHandler(api_key=api_key, verify_ssl=verify_ssl)
+        super().__init__(token_handler=TokenHandler(api_key=api_key, verify_ssl=verify_ssl))
         self.user_info = self.get_user()
 
     def get_user(self) -> UserResponse:
@@ -279,7 +280,6 @@ class ConverterV2:
                 raise ValueError(f"Model with ID {input_model_id} not found")
 
             input_model.user_id = self.user_info.user_id
-            project = self.get_project(project_id=input_model.project_id)
 
             # Download model to temporary directory
             download_dir = Path(output_dir) / "input_model"
@@ -322,7 +322,6 @@ class ConverterV2:
             # Execute common conversion logic
             return self._perform_conversion(
                 input_model=input_model,
-                project=project,
                 input_model_path=str(local_path),
                 output_dir=output_dir,
                 target_framework=target_framework,
@@ -442,7 +441,6 @@ class ConverterV2:
     def _perform_conversion(
         self,
         input_model: Model,
-        project: Project,
         input_model_path: str,
         output_dir: str,
         target_framework: Union[str, TargetFramework],
@@ -500,7 +498,7 @@ class ConverterV2:
             user_id=self.user_info.user_id,
         )
 
-        object_path = f"{project.user_id}/{project.project_id}/{model.model_id}/model{extension}"
+        object_path = f"{self.user_info.user_id}/{input_model.project_id}/{model.model_id}/model{extension}"
         logger.info(f"Object path: {object_path}")
         model.object_path = object_path
         model = self._save_model(model)

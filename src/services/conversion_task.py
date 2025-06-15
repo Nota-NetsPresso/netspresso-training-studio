@@ -18,11 +18,13 @@ from src.api.v1.schemas.tasks.device import (
     SupportedDeviceResponse,
     TargetDevicePayload,
 )
-from src.modules.clients.enums.task import TaskStatusForDisplay
-from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.enums.conversion import SourceFramework
+from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
 from src.models.conversion import ConversionTask
+from src.modules.clients.enums.task import TaskStatusForDisplay
+from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
+from src.modules.converter.v2.converter import ConverterV2
 from src.repositories.base import Order, TimeSort
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.model import model_repository
@@ -44,8 +46,7 @@ class ConversionTaskService:
         Returns:
             List[SupportedDeviceResponse]: List of supported devices grouped by framework
         """
-        netspresso = NetsPresso(api_key=api_key)
-        converter = netspresso.converter_v2()
+        converter = ConverterV2(api_key=api_key)
         supported_options = converter.get_supported_options(framework=framework)
 
         return [self._create_supported_device_response(option) for option in supported_options]
@@ -108,7 +109,7 @@ class ConversionTaskService:
 
             if is_same_options and is_same_software_version:
                 # If task is in NOT_STARTED, IN_PROGRESS, or COMPLETED state, return it
-                reusable_states = [Status.NOT_STARTED, Status.IN_PROGRESS, Status.COMPLETED]
+                reusable_states = [TaskStatus.NOT_STARTED, TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED]
                 if task.status in reusable_states:
                     logger.info(f"Returning existing conversion task with status {task.status}: {task.task_id}")
                     return ConversionCreatePayload(task_id=task.task_id)
@@ -119,11 +120,9 @@ class ConversionTaskService:
 
         # Get model from trained models repository
         model = model_repository.get_by_model_id(db=db, model_id=conversion_in.input_model_id)
-        project = project_service.get_project(db=db, project_id=model.project_id, api_key=api_key)
 
         # Create output directory path as a 'converted' subfolder of input model path
-        project_abs_path = Path(project.project_abs_path)
-        input_model_dir = project_abs_path / model.object_path
+        input_model_dir = Path(model.object_path)
 
         input_model_path = input_model_dir / "model.onnx"
         output_dir = input_model_dir / "converted"
@@ -175,13 +174,12 @@ class ConversionTaskService:
         return conversion_payload
 
     def cancel_conversion_task(self, db: Session, task_id: str, api_key: str):
-        netspresso = NetsPresso(api_key=api_key)
-        converter = netspresso.converter_v2()
+        converter = ConverterV2(api_key=api_key)
         conversion_task = conversion_task_repository.get_by_task_id(db, task_id)
         convert_task = converter.cancel_conversion_task(conversion_task.convert_task_uuid)
 
         if convert_task.status == TaskStatusForDisplay.USER_CANCEL:
-            conversion_task.status = Status.STOPPED
+            conversion_task.status = TaskStatus.STOPPED
             conversion_task = conversion_task_repository.save(db, conversion_task)
         else:
             raise ValueError(f"Failed to cancel conversion task: {convert_task.status}")
