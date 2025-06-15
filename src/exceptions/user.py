@@ -1,7 +1,7 @@
 from fastapi import status
 
-from app.exceptions.base import ExceptionBase
-from app.exceptions.schema import AdditionalData, Origin
+from src.exceptions.base import ExceptionBase
+from src.exceptions.schema import AdditionalData, Origin
 
 
 class IncorrectEmailOrPasswordException(ExceptionBase):
