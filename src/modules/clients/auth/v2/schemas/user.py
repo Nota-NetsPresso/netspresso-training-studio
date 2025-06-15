@@ -2,11 +2,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from src.clients.auth import response_body
-from src.clients.auth.response_body import UserDetailResponse
-from src.clients.auth.v2.schemas.common import AbstractResponse, MembershipType
-from src.clients.auth.v2.schemas.credit import SummarizedCreditResponse
-from src.clients.auth.v2.schemas.user_agreement import UserAgreementBase
+from src.modules.clients.auth import response_body
+from src.modules.clients.auth.response_body import UserDetailResponse
+from src.modules.clients.auth.v2.schemas.common import AbstractResponse, MembershipType
+from src.modules.clients.auth.v2.schemas.credit import SummarizedCreditResponse
+from src.modules.clients.auth.v2.schemas.user_agreement import UserAgreementBase
 
 
 @dataclass

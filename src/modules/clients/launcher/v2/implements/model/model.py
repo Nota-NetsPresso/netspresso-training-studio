@@ -3,9 +3,9 @@ from dataclasses import asdict
 import requests
 from requests_toolbelt import MultipartEncoderMonitor
 
-from src.clients.enums.task import LauncherTask
-from src.clients.launcher.v2.interfaces import ModelInterface
-from src.clients.launcher.v2.schemas import (
+from src.modules.clients.enums.task import LauncherTask
+from src.modules.clients.launcher.v2.interfaces import ModelInterface
+from src.modules.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     RequestModelUploadUrl,
     RequestPagination,
@@ -18,8 +18,8 @@ from src.clients.launcher.v2.schemas import (
     ResponseModelUploadUrl,
     UploadFile,
 )
-from src.clients.utils.common import create_multipart_data, create_progress_func, progress_callback
-from src.clients.utils.requester import Requester
+from src.modules.clients.utils.common import create_multipart_data, create_progress_func, progress_callback
+from src.modules.clients.utils.requester import Requester
 
 
 class ModelAPI(ModelInterface):

@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, Union
 
-from src.clients.enums.metadata import TaskType
-from src.clients.metadata.common import BaseMetadata, ModelInfo
+from src.modules.clients.enums.metadata import TaskType
+from src.modules.clients.metadata.common import BaseMetadata, ModelInfo
 from src.enums.quantize import QuantizationMode, QuantizationPrecision, SimilarityMetric
 
 

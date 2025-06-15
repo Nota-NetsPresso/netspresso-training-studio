@@ -2,7 +2,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional, Union
 
-from src.clients.launcher.v2.schemas import InputLayer
+from src.modules.clients.launcher.v2.schemas import InputLayer
 from src.enums.quantize import QuantizationMode, QuantizationPrecision, SimilarityMetric
 
 

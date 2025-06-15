@@ -2,14 +2,14 @@ from dataclasses import asdict
 
 from loguru import logger
 
-from src.clients.auth import response_body
-from src.clients.auth.request_body import LoginRequest
-from src.clients.auth.v2.schemas.auth import TokenRefreshRequest
-from src.clients.auth.v2.schemas.credit import SummarizedCreditResponse
-from src.clients.auth.v2.schemas.token import TokenResponse
-from src.clients.auth.v2.schemas.user import UserResponse
-from src.clients.config import Config
-from src.clients.utils.requester import Requester
+from src.modules.clients.auth import response_body
+from src.modules.clients.auth.request_body import LoginRequest
+from src.modules.clients.auth.v2.schemas.auth import TokenRefreshRequest
+from src.modules.clients.auth.v2.schemas.credit import SummarizedCreditResponse
+from src.modules.clients.auth.v2.schemas.token import TokenResponse
+from src.modules.clients.auth.v2.schemas.user import UserResponse
+from src.modules.clients.config import Config
+from src.modules.clients.utils.requester import Requester
 
 
 class AuthClientV2:

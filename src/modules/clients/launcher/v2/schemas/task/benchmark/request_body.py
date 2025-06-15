@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.clients.launcher.v2.schemas import InputLayer
+from src.modules.clients.launcher.v2.schemas import InputLayer
 from src.enums.device import DeviceName, HardwareType, SoftwareVersion
 from src.enums.model import DataType
 

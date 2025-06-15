@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from src.clients.metadata.common import AvailableOption, BaseMetadata, ModelInfo
+from src.modules.clients.metadata.common import AvailableOption, BaseMetadata, ModelInfo
 from src.enums.device import DeviceName, SoftwareVersion
 from src.enums.model import DataType, Framework
 from src.enums.task import RetrievalTaskType

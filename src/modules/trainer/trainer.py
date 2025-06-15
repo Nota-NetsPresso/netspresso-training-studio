@@ -31,20 +31,20 @@ from src.models.training import (
     Performance,
     TrainingTask,
 )
-from src.modules.inferencer.preprocessors.base import Preprocessor
-from src.modules.trainer.augmentations import AUGMENTATION_CONFIG_TYPE, AugmentationConfig, Transform
-from src.modules.trainer.data import DATA_CONFIG_TYPE, ImageLabelPathConfig, PathConfig
-from src.modules.trainer.models import (
+from src.moduless.inferencer.preprocessors.base import Preprocessor
+from src.moduless.trainer.augmentations import AUGMENTATION_CONFIG_TYPE, AugmentationConfig, Transform
+from src.moduless.trainer.data import DATA_CONFIG_TYPE, ImageLabelPathConfig, PathConfig
+from src.moduless.trainer.models import (
     CLASSIFICATION_MODELS,
     DETECTION_MODELS,
     SEGMENTATION_MODELS,
     CheckpointConfig,
 )
-from src.modules.trainer.optimizers.optimizers import get_supported_optimizers
-from src.modules.trainer.schedulers.schedulers import get_supported_schedulers
-from src.modules.trainer.trainer_configs import TrainerConfigs
-from src.modules.trainer.training import TRAINING_CONFIG_TYPE, EnvironmentConfig, LoggingConfig, ScheduleConfig
-from src.modules.trainer.training.logging import Metrics, ModelSaveOptions
+from src.moduless.trainer.optimizers.optimizers import get_supported_optimizers
+from src.moduless.trainer.schedulers.schedulers import get_supported_schedulers
+from src.moduless.trainer.trainer_configs import TrainerConfigs
+from src.moduless.trainer.training import TRAINING_CONFIG_TYPE, EnvironmentConfig, LoggingConfig, ScheduleConfig
+from src.moduless.trainer.training.logging import Metrics, ModelSaveOptions
 from src.repositories.evaluation import evaluation_dataset_repository
 from src.repositories.training import training_task_repository
 from src.utils.file import FileHandler

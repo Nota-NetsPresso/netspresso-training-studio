@@ -1,7 +1,7 @@
-from src.clients.config import Config, ServiceModule, ServiceName
-from src.clients.launcher.v2.benchmarker import Benchmarker
-from src.clients.launcher.v2.converter import Converter
-from src.clients.launcher.v2.quantizer import Quantizer
+from src.modules.clients.config import Config, ServiceModule, ServiceName
+from src.modules.clients.launcher.v2.benchmarker import Benchmarker
+from src.modules.clients.launcher.v2.converter import Converter
+from src.modules.clients.launcher.v2.quantizer import Quantizer
 
 
 class LauncherAPIClient:

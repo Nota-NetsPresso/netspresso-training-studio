@@ -1,12 +1,12 @@
-from src.clients.config import Config, ServiceModule, ServiceName
-from src.clients.dataforge.schemas.response_body import (
+from src.modules.clients.config import Config, ServiceModule, ServiceName
+from src.modules.clients.dataforge.schemas.response_body import (
     DatasetResponse,
     DatasetsResponse,
     DatasetVersionResponse,
     DatasetVersionsResponse,
 )
-from src.clients.utils.common import get_headers
-from src.clients.utils.requester import Requester
+from src.modules.clients.utils.common import get_headers
+from src.modules.clients.utils.requester import Requester
 
 
 class DataForgeClient:

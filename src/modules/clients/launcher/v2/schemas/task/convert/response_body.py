@@ -2,8 +2,8 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from src.clients.enums.task import TaskStatusForDisplay
-from src.clients.launcher.v2.schemas import (
+from src.modules.clients.enums.task import TaskStatusForDisplay
+from src.modules.clients.launcher.v2.schemas import (
     InputLayer,
     ModelOption,
     ResponseItem,
@@ -11,8 +11,8 @@ from src.clients.launcher.v2.schemas import (
     TaskInfo,
     TaskOption,
 )
-from src.clients.launcher.v2.schemas.task.common import TaskStatusInfo
-from src.clients.metadata.converter import ConvertInfo
+from src.modules.clients.launcher.v2.schemas.task.common import TaskStatusInfo
+from src.modules.clients.metadata.converter import ConvertInfo
 from src.enums.model import Framework
 
 

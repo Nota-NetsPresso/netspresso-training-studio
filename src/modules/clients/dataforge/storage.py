@@ -5,7 +5,7 @@ import boto3
 from botocore.exceptions import ClientError
 from loguru import logger
 
-from src.clients.dataforge.utils.singleton import SingletonInstance
+from src.modules.clients.dataforge.utils.singleton import SingletonInstance
 
 
 class S3Provider(SingletonInstance):

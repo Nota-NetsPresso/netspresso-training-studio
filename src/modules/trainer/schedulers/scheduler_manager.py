@@ -6,7 +6,7 @@ from netspresso.trainer.schedulers.schedulers import (
     PolynomialLRWithWarmUp,
     StepLR,
 )
-from src.modules.trainer.schedulers.schedulers import BaseScheduler
+from src.moduless.trainer.schedulers.schedulers import BaseScheduler
 
 
 class SchedulerManager:

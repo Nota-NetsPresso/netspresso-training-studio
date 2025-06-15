@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.clients.enums.task import TaskStatusForDisplay
+from src.modules.clients.enums.task import TaskStatusForDisplay
 
 
 @dataclass

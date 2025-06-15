@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.clients.enums.task import LauncherTask
+from src.modules.clients.enums.task import LauncherTask
 
 
 @dataclass

@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from src.clients.enums.task import TaskType
-from src.clients.metadata.common import BaseMetadata
+from src.modules.clients.enums.task import TaskType
+from src.modules.clients.metadata.common import BaseMetadata
 from src.enums.device import DeviceName, HardwareType, SoftwareVersion
 from src.enums.model import DataType, Framework
 

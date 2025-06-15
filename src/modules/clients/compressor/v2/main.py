@@ -5,8 +5,8 @@ from requests_toolbelt import MultipartEncoderMonitor
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 from tqdm import tqdm
 
-from src.clients.compressor.v2.schemas.common import RequestPagination, UploadFile
-from src.clients.compressor.v2.schemas.compression import (
+from src.modules.clients.compressor.v2.schemas.common import RequestPagination, UploadFile
+from src.modules.clients.compressor.v2.schemas.compression import (
     RequestAutomaticCompressionParams,
     RequestAvailableLayers,
     RequestCreateCompression,
@@ -17,7 +17,7 @@ from src.clients.compressor.v2.schemas.compression import (
     ResponseRecommendationItem,
     ResponseSelectMethodItem,
 )
-from src.clients.compressor.v2.schemas.model import (
+from src.modules.clients.compressor.v2.schemas.model import (
     RequestCreateModel,
     RequestUploadModel,
     RequestValidateModel,
@@ -25,9 +25,9 @@ from src.clients.compressor.v2.schemas.model import (
     ResponseModelItems,
     ResponseModelUrl,
 )
-from src.clients.config import Config, ServiceModule, ServiceName
-from src.clients.utils.common import create_multipart_data, create_progress_func, get_headers, progress_callback
-from src.clients.utils.requester import Requester
+from src.modules.clients.config import Config, ServiceModule, ServiceName
+from src.modules.clients.utils.common import create_multipart_data, create_progress_func, get_headers, progress_callback
+from src.modules.clients.utils.requester import Requester
 
 
 class CompressorAPIClient:

@@ -1,7 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
 
-from src.clients.launcher.v2.schemas import ResponseItem, ResponseItems
+from src.modules.clients.launcher.v2.schemas import ResponseItem, ResponseItems
 
 
 class TaskInterface(ABC):

@@ -4,9 +4,9 @@ import jwt
 import pytz
 from loguru import logger
 
-from src.clients.auth.response_body import TokenResponse, UserResponse
-from src.clients.auth.v2.client import AuthClientV2
-from src.clients.config import Config, ServiceModule, ServiceName
+from src.modules.clients.auth.response_body import TokenResponse, UserResponse
+from src.modules.clients.auth.v2.client import AuthClientV2
+from src.modules.clients.config import Config, ServiceModule, ServiceName
 
 
 class AuthClient:

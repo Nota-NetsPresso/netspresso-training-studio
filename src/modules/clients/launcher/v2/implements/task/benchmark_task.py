@@ -1,8 +1,8 @@
 from dataclasses import asdict
 
-from src.clients.enums.task import LauncherTask
-from src.clients.launcher.v2.interfaces import TaskInterface
-from src.clients.launcher.v2.schemas import (
+from src.modules.clients.enums.task import LauncherTask
+from src.modules.clients.launcher.v2.interfaces import TaskInterface
+from src.modules.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     RequestBenchmark,
     ResponseBenchmarkFrameworkOptionItems,
@@ -11,7 +11,7 @@ from src.clients.launcher.v2.schemas import (
     ResponseBenchmarkTaskItem,
     UploadFile,
 )
-from src.clients.utils.requester import Requester
+from src.modules.clients.utils.requester import Requester
 
 
 class BenchmarkTaskAPI(TaskInterface):

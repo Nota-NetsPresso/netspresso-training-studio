@@ -3,9 +3,9 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Union
 
-from src.clients.metadata import common
-from src.clients.metadata.common import AvailableOption, SoftwareVersions
-from src.clients.utils.system import ENV_STR
+from src.modules.clients.metadata import common
+from src.modules.clients.metadata.common import AvailableOption, SoftwareVersions
+from src.modules.clients.utils.system import ENV_STR
 from src.enums.device import HardwareType, SoftwareVersion, SoftwareVersionDisplay
 from src.enums.model import DataType, Framework
 

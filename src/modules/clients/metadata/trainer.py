@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from src.clients.enums.metadata import TaskType
-from src.clients.metadata.common import AvailableOption, BaseMetadata, InputShape
+from src.modules.clients.enums.metadata import TaskType
+from src.modules.clients.metadata.common import AvailableOption, BaseMetadata, InputShape
 
 
 @dataclass

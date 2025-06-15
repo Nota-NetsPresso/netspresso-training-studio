@@ -2,8 +2,8 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from src.clients.compressor.v2.schemas.common import ResponseItem, ResponsePaginationItems
-from src.clients.compressor.v2.schemas.compression.base import Layer, Options
+from src.modules.clients.compressor.v2.schemas.common import ResponseItem, ResponsePaginationItems
+from src.modules.clients.compressor.v2.schemas.compression.base import Layer, Options
 from src.enums.compression import CompressionMethod, RecommendationMethod
 
 

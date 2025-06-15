@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import APIKeyHeader
 
 from src.api.v1.schemas.user import Token
-from src.clients.auth import auth_client
+from src.modules.clients.auth import auth_client
 
 # Define the header key
 API_KEY_NAME = "X-API-Key"

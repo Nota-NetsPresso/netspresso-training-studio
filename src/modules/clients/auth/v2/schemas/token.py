@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from src.clients.auth import response_body
-from src.clients.auth.v2.schemas.common import AbstractResponse
+from src.modules.clients.auth import response_body
+from src.modules.clients.auth.v2.schemas.common import AbstractResponse
 
 
 @dataclass

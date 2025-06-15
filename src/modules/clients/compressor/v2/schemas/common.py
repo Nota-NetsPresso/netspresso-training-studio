@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Union
 
-from src.clients.metadata import common
-from src.clients.metadata.common import AvailableOption
+from src.modules.clients.metadata import common
+from src.modules.clients.metadata.common import AvailableOption
 from src.enums.device import HardwareType, SoftwareVersion, SoftwareVersionDisplay
 from src.enums.model import DataType, Framework
 

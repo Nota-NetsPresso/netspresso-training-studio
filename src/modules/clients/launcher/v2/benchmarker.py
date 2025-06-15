@@ -2,9 +2,9 @@ import os
 
 from loguru import logger
 
-from src.clients.enums.task import LauncherTask
-from src.clients.launcher.v2.implements import BenchmarkTaskAPI, ModelAPI
-from src.clients.launcher.v2.schemas import (
+from src.modules.clients.enums.task import LauncherTask
+from src.modules.clients.launcher.v2.implements import BenchmarkTaskAPI, ModelAPI
+from src.modules.clients.launcher.v2.schemas import (
     AuthorizationHeader,
     InputLayer,
     RequestBenchmark,
@@ -20,7 +20,7 @@ from src.clients.launcher.v2.schemas import (
     ResponseModelUploadUrl,
     UploadFile,
 )
-from src.clients.utils.common import read_file_bytes
+from src.modules.clients.utils.common import read_file_bytes
 from src.enums.device import DeviceName, HardwareType, SoftwareVersion
 from src.enums.model import DataType, Framework
 

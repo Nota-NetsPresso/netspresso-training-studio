@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from src.clients.compressor.v2.schemas.compression.base import Layer, Options, RecommendationOptions
+from src.modules.clients.compressor.v2.schemas.compression.base import Layer, Options, RecommendationOptions
 from src.enums.compression import CompressionMethod, RecommendationMethod
 from src.exceptions.compressor import (
     EmptyCompressionParamsException,
