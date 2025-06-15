@@ -619,7 +619,6 @@ class ConverterV2(NetsPressoBase):
     def convert_model(
         self,
         input_model_path: str,
-        output_dir: str,
         target_framework: Union[str, TargetFramework],
         target_device_name: Union[str, DeviceName],
         target_data_type: Union[str, DataType] = DataType.FP16,
@@ -670,7 +669,6 @@ class ConverterV2(NetsPressoBase):
                 dataset_path=dataset_path,
                 wait_until_done=wait_until_done,
                 sleep_interval=sleep_interval,
-                output_dir=output_dir,
                 conversion_task_id=conversion_task_id,
             )
         elif input_model_path:
@@ -684,7 +682,6 @@ class ConverterV2(NetsPressoBase):
                 dataset_path=dataset_path,
                 wait_until_done=wait_until_done,
                 sleep_interval=sleep_interval,
-                output_dir=output_dir,
                 project_id=project_id,
             )
         else:

@@ -11,7 +11,6 @@ def convert_model(
     self,
     api_key: str,
     input_model_path: str,
-    output_dir: str,
     target_framework: str,
     target_device_name: str,
     target_data_type: str,
@@ -25,7 +24,6 @@ def convert_model(
 
     task_id = converter.convert_model(
         input_model_path=input_model_path,
-        output_dir=output_dir,
         target_framework=target_framework,
         target_device_name=target_device_name,
         target_data_type=target_data_type,
