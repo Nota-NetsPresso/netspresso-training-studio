@@ -169,15 +169,17 @@ class TrainingTaskService:
             project_id=project_id,
         )
 
-        # Extract existing names from models and count occurrences of base name
-        base_name_count = sum(1 for model in models if model.type == ModelType.TRAINED_MODEL and model.name.startswith(name))
+        existing_names = {model.name for model in models if model.type == ModelType.TRAINED_MODEL and not model.is_deleted}
 
-        # If no models with this name exist, return original name
-        if base_name_count == 0:
+        if name not in existing_names:
             return name
 
-        # If models exist, return name with count
-        return f"{name} ({base_name_count})"
+        i = 1
+        while True:
+            candidate = f"{name} ({i})"
+            if candidate not in existing_names:
+                return candidate
+            i += 1
 
     def create_trained_model(self, db: Session, model_name: str, user_id: str, project_id: str) -> Model:
         model_id = generate_uuid(entity="model")
