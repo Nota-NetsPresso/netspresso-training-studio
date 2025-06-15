@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from src.api.v1.endpoints import (
+    benchmark_task,
     compression_task,
     conversion_task,
     evaluation_task,
@@ -20,3 +21,4 @@ api_router.include_router(training_task.router, prefix="/tasks", tags=["training
 api_router.include_router(evaluation_task.router, prefix="/tasks", tags=["evaluation"])
 api_router.include_router(compression_task.router, prefix="/tasks", tags=["compression"])
 api_router.include_router(conversion_task.router, prefix="/tasks", tags=["conversion"])
+api_router.include_router(benchmark_task.router, prefix="/tasks", tags=["benchmark"])

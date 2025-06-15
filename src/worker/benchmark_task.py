@@ -1,6 +1,6 @@
 from celery import chain
 
-from src.modules.clients.launcher.v2.main import launcher_client_v2
+from src.modules.benchmarker.v2.benchmarker import BenchmarkerV2
 from src.worker.celery_app import celery_app
 
 POLLING_INTERVAL = 30  # seconds
@@ -17,9 +17,7 @@ def benchmark_model(
     input_model_id: str = None,
     benchmark_task_id: str = None,
 ):
-    netspresso = NetsPresso(api_key=api_key)
-
-    benchmarker = netspresso.benchmarker_v2()
+    benchmarker = BenchmarkerV2(api_key=api_key)
     task_id = benchmarker.benchmark_model(
         input_model_path=input_model_path,
         target_device_name=target_device_name,
@@ -36,9 +34,7 @@ def benchmark_model(
 
 @celery_app.task
 def poll_benchmark_status(api_key: str, task_id: str):
-    netspresso = NetsPresso(api_key=api_key)
-
-    benchmarker = netspresso.benchmarker_v2()
+    benchmarker = BenchmarkerV2(api_key=api_key)
     status_updated = benchmarker.update_benchmark_task_status(task_id)
 
     if not status_updated:
