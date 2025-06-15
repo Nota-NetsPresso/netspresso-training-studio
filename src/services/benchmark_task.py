@@ -155,9 +155,8 @@ class BenchmarkTaskService:
                 break
 
         model = model_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
-        project = project_service.get_project(db=db, project_id=model.project_id, api_key=api_key)
 
-        input_model_path = Path(project.project_abs_path) / model.object_path
+        input_model_path = Path(model.object_path)
         logger.info(f"Input model path: {input_model_path}")
         logger.info(f"Benchmark Info: {benchmark_in.model_dump()}")
 
