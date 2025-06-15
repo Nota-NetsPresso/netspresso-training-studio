@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from netspresso.enums.metadata import TaskType
-from netspresso.metadata.common import AvailableOption, BaseMetadata, InputShape
+from src.enums.task import RetrievalTaskType
+from src.modules.clients.metadata.common import AvailableOption, BaseMetadata, InputShape
 
 
 @dataclass
@@ -24,7 +24,7 @@ class TrainingInfo:
 
 @dataclass
 class TrainerMetadata(BaseMetadata):
-    task_type: TaskType = TaskType.TRAIN
+    task_type: RetrievalTaskType = RetrievalTaskType.TRAIN
     output_dir: str = ""
     best_fx_model_path: str = ""
     best_onnx_model_path: str = ""

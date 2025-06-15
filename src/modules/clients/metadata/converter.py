@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from netspresso.enums import DataType, DeviceName, Framework, SoftwareVersion, TaskType
-from netspresso.metadata.common import AvailableOption, BaseMetadata, ModelInfo
+from src.enums.device import DeviceName, SoftwareVersion
+from src.enums.model import DataType, Framework
+from src.enums.task import RetrievalTaskType
+from src.modules.clients.metadata.common import AvailableOption, BaseMetadata, ModelInfo
 
 
 @dataclass
@@ -23,7 +25,7 @@ class ConvertInfo:
 
 @dataclass
 class ConverterMetadata(BaseMetadata):
-    task_type: TaskType = TaskType.CONVERT
+    task_type: RetrievalTaskType = RetrievalTaskType.CONVERT
     input_model_path: str = ""
     converted_model_path: str = ""
     model_info: ModelInfo = field(default_factory=ModelInfo)

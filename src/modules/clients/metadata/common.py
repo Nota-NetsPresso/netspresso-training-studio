@@ -2,9 +2,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
-from netspresso.enums.device import DeviceName, HardwareType, SoftwareVersion
-from netspresso.enums.metadata import Status
-from netspresso.enums.model import DataType, Framework
+from src.enums.device import DeviceName, HardwareType, SoftwareVersion
+from src.enums.model import DataType, Framework
+from src.enums.task import TaskStatus
 
 
 @dataclass
@@ -67,7 +67,7 @@ class ExceptionDetail:
 
 @dataclass
 class BaseMetadata:
-    status: Status = Status.IN_PROGRESS
+    status: TaskStatus = TaskStatus.IN_PROGRESS
     error_detail: ExceptionDetail = field(default_factory=ExceptionDetail)
 
     def asdict(self) -> Dict:
@@ -80,5 +80,5 @@ class BaseMetadata:
         else:
             self.error_detail = ExceptionDetail(**exception_detail)
 
-    def update_status(self, status: Status):
+    def update_status(self, status: TaskStatus):
         self.status = status
