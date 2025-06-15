@@ -17,6 +17,7 @@ from src.models.compression import CompressionTask
 from src.models.conversion import ConversionTask
 from src.models.model import Model
 from src.models.project import Project
+from src.modules.base import NetsPressoBase
 from src.modules.clients.auth import TokenHandler, auth_client
 from src.modules.clients.auth.response_body import UserResponse
 from src.modules.clients.enums.task import TaskStatusForDisplay
@@ -34,10 +35,10 @@ from src.zenko.storage_handler import ObjectStorageHandler
 storage_handler = ObjectStorageHandler()
 BUCKET_NAME = "model"
 
-class ConverterV2:
+class ConverterV2(NetsPressoBase):
     def __init__(self, api_key: str, verify_ssl: bool = True) -> None:
         """Initialize the Compressor."""
-        self.token_handler = TokenHandler(api_key=api_key, verify_ssl=verify_ssl)
+        super().__init__(token_handler=TokenHandler(api_key=api_key, verify_ssl=verify_ssl))
         self.user_info = self.get_user()
 
     def get_user(self) -> UserResponse:
