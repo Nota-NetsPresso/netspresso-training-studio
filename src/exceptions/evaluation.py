@@ -1,5 +1,6 @@
 from fastapi import status
 
+from src.enums.conversion import TargetFramework
 from src.enums.exception import Origin
 from src.exceptions.base import AdditionalData, ExceptionBase
 
@@ -70,7 +71,7 @@ class InvalidEvaluationDatasetException(ExceptionBase):
         )
 
 
-class UnsupportedEvaluationFrameworkException(PyNPException):
+class UnsupportedEvaluationFrameworkException(ExceptionBase):
     def __init__(self, framework: TargetFramework):
         message = f"The framework '{framework}' is not supported for evaluation."
         super().__init__(
@@ -81,7 +82,7 @@ class UnsupportedEvaluationFrameworkException(PyNPException):
         )
 
 
-class EvaluationResultFileNotFoundException(PyNPException):
+class EvaluationResultFileNotFoundException(ExceptionBase):
     def __init__(self, task_id: str):
         message = f"The evaluation result file for task '{task_id}' does not exist."
         super().__init__(
@@ -92,7 +93,7 @@ class EvaluationResultFileNotFoundException(PyNPException):
         )
 
 
-class EvaluationDownloadURLGenerationException(PyNPException):
+class EvaluationDownloadURLGenerationException(ExceptionBase):
     def __init__(self, task_id: str, error_details: str):
         message = f"Failed to generate download URL for evaluation task '{task_id}': {error_details}"
         super().__init__(
