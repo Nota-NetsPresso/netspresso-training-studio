@@ -1,6 +1,3 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-
 from app.api.deps import api_key_header
 from app.api.v1.schemas.device import SupportedDevicesResponse
 from app.api.v1.schemas.task.conversion.conversion_task import (
@@ -9,8 +6,11 @@ from app.api.v1.schemas.task.conversion.conversion_task import (
     ConversionResponse,
 )
 from app.services.conversion_task import conversion_task_service
-from netspresso.enums.conversion import SourceFramework
-from netspresso.utils.db.session import get_db
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from src.core.db.session import get_db
+from src.enums.conversion import SourceFramework
 
 router = APIRouter()
 

@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.deps import api_key_header
-from app.api.v1.schemas.task.compression.compression_task import (
+from src.api.deps import api_key_header
+from src.api.v1.schemas.tasks.compression_task import (
     CompressionCreate,
     CompressionCreateResponse,
     CompressionResponse,
 )
-from app.services.compression_task import compression_task_service
-from netspresso.utils.db.session import get_db
+from src.core.db.session import get_db
+from src.services.compression_task import compression_task_service
 
 router = APIRouter()
 
