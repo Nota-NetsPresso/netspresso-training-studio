@@ -16,6 +16,7 @@ class RetrievalTaskType(str, Enum):
     CONVERT = "convert"
     BENCHMARK = "benchmark"
     EVALUATE = "evaluate"
+    QUANTIZE = "quantize"
 
 
 class TaskStatus(str, Enum):
