@@ -8,13 +8,13 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from tqdm import tqdm
 
-from netspresso.clients.auth.client import TokenHandler
-from netspresso.clients.dataforge.schemas.response_body import (
+from src.exceptions.dataset import DatasetDownloadError, DatasetNotFoundError, DatasetPrepareError
+from src.modules.clients.auth.client import TokenHandler
+from src.modules.clients.dataforge.schemas.response_body import (
     DatasetPayload,
     DatasetVersionInfo,
     DatasetVersionResponse,
 )
-from netspresso.exceptions.dataset import DatasetDownloadError, DatasetNotFoundError, DatasetPrepareError
 from src.modules.trainer.storage.dataforge import Split, dataforge
 
 
