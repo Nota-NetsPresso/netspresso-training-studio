@@ -57,7 +57,11 @@ def evaluate_model_task(
     try:
         from src.services.training_task import training_task_service
 
-        training_task = training_task_service.get_training_task(db=session, task_id=training_task_id, api_key=api_key)
+        training_task = training_task_service.get_training_task(
+            db=session,
+            task_id=training_task_id,
+            token=api_key,
+        )
 
         # Get trainer instance from the training task
         trainer = Trainer(task=training_task.task.name)

@@ -16,6 +16,7 @@ from src.exceptions.compression import FailedUploadModelException
 from src.models.compression import CompressionModelResult, CompressionTask
 from src.models.model import Model
 from src.models.training import TrainingTask
+from src.modules.base import NetsPressoBase
 from src.modules.clients.auth import TokenHandler
 from src.modules.clients.auth.client import auth_client
 from src.modules.clients.auth.response_body import UserResponse
@@ -46,10 +47,10 @@ from src.zenko.storage_handler import ObjectStorageHandler
 storage_handler = ObjectStorageHandler()
 BUCKET_NAME = "model"
 
-class CompressorV2:
+class CompressorV2(NetsPressoBase):
     def __init__(self, api_key: str, verify_ssl: bool = True) -> None:
         """Initialize the Compressor."""
-        self.token_handler = TokenHandler(api_key=api_key, verify_ssl=verify_ssl)
+        super().__init__(token_handler=TokenHandler(api_key=api_key, verify_ssl=verify_ssl))
         self.user_info = self.get_user()
 
     def get_user(self) -> UserResponse:
@@ -301,7 +302,7 @@ class CompressorV2:
             return enum_obj.value
         return str(enum_obj)
 
-    def recommendation_compression_from_id(
+    def recommendation_compression(
         self,
         input_model_id: str,
         compression_method: CompressionMethod,
@@ -326,7 +327,6 @@ class CompressorV2:
                 output_dir = FileHandler.create_unique_folder(folder_path=output_dir)
 
             input_model = self.get_input_model(input_model_id)
-            project = self.get_project(project_id=input_model.project_id)
 
             # Download model to temporary directory
             download_dir = Path(output_dir) / "input_model"
@@ -358,7 +358,7 @@ class CompressorV2:
                 project_id=input_model.project_id,
                 user_id=self.user_info.user_id,
             )
-            object_path = f"{project.user_id}/{project.project_id}/{model.model_id}/model.pt"
+            object_path = f"{model.user_id}/{input_model.project_id}/{model.model_id}/model.pt"
             logger.info(f"Object path: {object_path}")
             model.object_path = object_path
             model = self._save_model(model)
@@ -495,7 +495,7 @@ class CompressorV2:
             )
 
         except Exception as e:
-            logger.error(f"Error in recommendation_compression_from_id: {e}")
+            logger.error(f"Error in recommendation_compression: {e}")
             compression_task.status = TaskStatus.ERROR
             compression_task.error_detail = str(e) if e.args else "Unknown error"
             raise e

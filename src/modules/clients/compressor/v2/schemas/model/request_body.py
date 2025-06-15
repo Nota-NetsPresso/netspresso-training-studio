@@ -2,7 +2,7 @@ from dataclasses import asdict, dataclass, field
 from typing import List, Optional
 
 from src.enums.model import Framework
-from src.exceptions.compressor import NotFillInputLayersException
+from src.exceptions.compression import NotFillInputLayersException
 
 
 @dataclass

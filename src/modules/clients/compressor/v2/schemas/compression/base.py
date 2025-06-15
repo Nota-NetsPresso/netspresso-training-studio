@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 from src.enums.compression import GroupPolicy, LayerNorm, Policy, StepOp
-from src.exceptions.compressor import NotValidChannelAxisRangeException
+from src.exceptions.compression import NotValidChannelAxisRangeException
 
 
 @dataclass

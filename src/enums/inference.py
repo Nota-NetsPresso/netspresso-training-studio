@@ -1,6 +1,6 @@
 from enum import Enum
 
-from netspresso.exceptions.inferencer import NotSupportedSuffixException
+from src.exceptions.inferencer import NotSupportedSuffixException
 
 
 class Runtime(str, Enum):

@@ -2,11 +2,11 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
 
+from src.enums.quantize import QuantizationMode, QuantizationPrecision, SimilarityMetric
 from src.modules.clients.enums.task import TaskStatusForDisplay
 from src.modules.clients.launcher.v2.schemas import InputLayer, ResponseItem, ResponseItems
 from src.modules.clients.launcher.v2.schemas.task.common import TaskStatusInfo
 from src.modules.clients.metadata.quantizer import QuantizeInfo
-from src.enums.quantize import QuantizationMode, QuantizationPrecision, SimilarityMetric
 
 
 @dataclass
