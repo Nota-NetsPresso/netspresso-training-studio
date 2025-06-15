@@ -327,7 +327,6 @@ class CompressorV2(NetsPressoBase):
                 output_dir = FileHandler.create_unique_folder(folder_path=output_dir)
 
             input_model = self.get_input_model(input_model_id)
-            project = self.get_project(project_id=input_model.project_id)
 
             # Download model to temporary directory
             download_dir = Path(output_dir) / "input_model"
@@ -359,7 +358,7 @@ class CompressorV2(NetsPressoBase):
                 project_id=input_model.project_id,
                 user_id=self.user_info.user_id,
             )
-            object_path = f"{project.user_id}/{project.project_id}/{model.model_id}/model.pt"
+            object_path = f"{model.user_id}/{input_model.project_id}/{model.model_id}/model.pt"
             logger.info(f"Object path: {object_path}")
             model.object_path = object_path
             model = self._save_model(model)
