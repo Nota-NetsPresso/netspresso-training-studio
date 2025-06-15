@@ -55,7 +55,11 @@ def start_training_task(
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> TrainingCreateResponse:
-    training_task = training_task_service.create_training_task(db=db, training_in=request_body, token=token.access_token)
+    training_task = training_task_service.create_training_task(
+        db=db,
+        training_in=request_body,
+        token=token.access_token,
+    )
     training_task_payload = training_task_service.start_training_task(
         db=db,
         training_in=request_body,
@@ -73,7 +77,11 @@ def get_training_task(
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> TrainingResponse:
-    training_task = training_task_service.get_training_task(db=db, task_id=task_id, token=token.access_token)
+    training_task = training_task_service.get_training_task(
+        db=db,
+        task_id=task_id,
+        token=token.access_token,
+    )
 
     return TrainingResponse(data=training_task)
 
