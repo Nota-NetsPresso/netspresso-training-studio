@@ -74,7 +74,12 @@ class CompressionPayload(BaseModel):
     method: CompressionMethod
     ratio: float
     options: RecommendationOptions
-    model_results: List[ModelResult]
+    model_results: List[ModelResult] = Field(
+        default_factory=lambda: [
+            ModelResult(result_type="original"),
+            ModelResult(result_type="compressed")
+        ]
+    )
     related_task_ids: List[str] = Field(default_factory=list)
     user_id: str
     status: str
