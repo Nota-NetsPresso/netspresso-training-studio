@@ -160,7 +160,7 @@ class BenchmarkerV2(NetsPressoBase):
             download_dir = Path(output_dir) / "input_model"
             download_dir.mkdir(parents=True, exist_ok=True)
 
-            local_path = download_dir / input_model.object_path.name
+            local_path = download_dir / Path(input_model.object_path).name
 
             logger.info(f"Downloading input model from Zenko to temp directory: {local_path}")
             storage_handler.download_file_from_s3(
