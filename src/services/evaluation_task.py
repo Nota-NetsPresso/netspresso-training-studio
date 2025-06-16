@@ -260,12 +260,8 @@ class EvaluationTaskService:
             if not model:
                 raise Exception(f"Input model with ID {evaluation_in.input_model_id} not found")
 
-            # Get project information
-            project = project_service.get_project(db=db, project_id=model.project_id, api_key=api_key)
-
             # Create input model and output directory paths
-            project_abs_path = Path(project.project_abs_path)
-            input_model_dir = project_abs_path / model.object_path
+            input_model_dir = Path(model.object_path)
 
             input_model_path = input_model_dir / "model.onnx"
             output_dir = input_model_dir / "converted"
