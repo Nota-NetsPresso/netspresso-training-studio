@@ -523,7 +523,7 @@ class EvaluationTaskService:
         self,
         db: Session,
         token: str,
-        converted_model_id: str,
+        model_id: str,
         dataset_id: str,
         start: int = 0,
         size: int = 20,
@@ -545,14 +545,14 @@ class EvaluationTaskService:
         evaluation_tasks = self.get_evaluation_results_by_model_and_dataset(
             db=db,
             token=token,
-            model_id=converted_model_id,
+            model_id=model_id,
             dataset_id=dataset_id
         )
 
         if not evaluation_tasks:
-            logger.warning(f"No evaluation tasks found for model {converted_model_id} and dataset {dataset_id}")
+            logger.warning(f"No evaluation tasks found for model {model_id} and dataset {dataset_id}")
             return EvaluationResultsPayload(
-                model_id=converted_model_id,
+                model_id=model_id,
                 dataset_id=dataset_id,
                 results=[],
                 result_count=0,
@@ -562,7 +562,7 @@ class EvaluationTaskService:
         if evaluation_tasks[0].is_dataset_deleted:
             logger.info(f"Dataset {dataset_id} is deleted. Returning empty results.")
             return EvaluationResultsPayload(
-                model_id=converted_model_id,
+                model_id=model_id,
                 dataset_id=dataset_id,
                 results=[],
                 result_count=0,
@@ -610,7 +610,7 @@ class EvaluationTaskService:
             if total_count == 0:
                 logger.warning("No image predictions were created")
                 return EvaluationResultsPayload(
-                    model_id=converted_model_id,
+                    model_id=model_id,
                     dataset_id=dataset_id,
                     results=[],
                     result_count=0,
@@ -629,7 +629,7 @@ class EvaluationTaskService:
 
             # Return combined results with pagination info
             return EvaluationResultsPayload(
-                model_id=converted_model_id,
+                model_id=model_id,
                 dataset_id=dataset_id,
                 results=paginated_predictions,
                 result_count=len(paginated_predictions),
