@@ -36,14 +36,15 @@ def convert_model(
             wait_until_done=False,
         )
 
-        chain(poll_conversion_status.s(db=db, api_key=api_key, task_id=task_id).set(countdown=POLLING_INTERVAL))()
+        chain(poll_conversion_status.s(api_key=api_key, task_id=task_id).set(countdown=POLLING_INTERVAL))()
         return task_id
 
 
 @celery_app.task
-def poll_conversion_status(db: Session, api_key: str, task_id: str):
-    converter = ConverterV2(api_key=api_key)
-    status_updated = converter.update_conversion_task_status(db=db, task_id=task_id)
+def poll_conversion_status(api_key: str, task_id: str):
+    with get_db_session() as db:
+        converter = ConverterV2(api_key=api_key)
+        status_updated = converter.update_conversion_task_status(db=db, task_id=task_id)
 
-    if not status_updated:
-        poll_conversion_status.apply_async(args=[db, api_key, task_id], countdown=POLLING_INTERVAL)
+        if not status_updated:
+            poll_conversion_status.apply_async(args=[api_key, task_id], countdown=POLLING_INTERVAL)
