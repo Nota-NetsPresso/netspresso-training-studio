@@ -161,3 +161,18 @@ def delete_evaluation_task(
     )
 
     return EvaluationResponse(data=evaluation_task)
+
+
+@router.delete("/evaluations/datasets/{dataset_id}", response_model=EvaluationResponse)
+def delete_evaluation_dataset(
+    dataset_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(api_key_header),
+) -> EvaluationResponse:
+    evaluation_task = evaluation_task_service.delete_evaluation_dataset(
+        db=db,
+        dataset_id=dataset_id,
+        api_key=api_key
+    )
+
+    return EvaluationResponse(data=evaluation_task)
