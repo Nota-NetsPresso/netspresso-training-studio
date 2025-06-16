@@ -121,6 +121,8 @@ class BenchmarkTaskService:
         return unique_devices
 
     def check_benchmark_task_exists(self, db: Session, benchmark_in: BenchmarkCreate) -> Optional[BenchmarkCreatePayload]:
+        logger.info(f"Checking if benchmark task exists for {benchmark_in.input_model_id}")
+
         # Check if a task with the same options already exists
         existing_tasks = benchmark_task_repository.get_all_by_model_id(
             db=db,
@@ -152,9 +154,12 @@ class BenchmarkTaskService:
                 logger.info(f"Previous benchmark task ended with status {task.status}, creating new task")
                 break
 
+        logger.info(f"No existing benchmark task found for {benchmark_in.input_model_id}")
         return None
 
     def create_benchmark_task(self, db: Session, benchmark_in: BenchmarkCreate, api_key: str) -> BenchmarkTask:
+        logger.info(f"Creating benchmark task for {benchmark_in.input_model_id}")
+
         input_model = model_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
 
         conversion_task = conversion_task_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
