@@ -182,6 +182,7 @@ class BenchmarkTaskService:
         worker_params = {
             "api_key": api_key,
             "input_model_id": benchmark_in.input_model_id,
+            "benchmark_task_id": benchmark_task.task_id,
             "target_device_name": benchmark_in.device_name,
             "target_software_version": benchmark_in.software_version,
             "target_hardware_type": benchmark_in.hardware_type,
