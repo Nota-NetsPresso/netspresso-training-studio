@@ -39,9 +39,19 @@ def create_benchmark_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> BenchmarkCreateResponse:
-    benchmark_task = benchmark_task_service.create_benchmark_task(db=db, benchmark_in=request_body, api_key=api_key)
+    existing_task = benchmark_task_service.check_benchmark_task_exists(db=db, benchmark_in=request_body, api_key=api_key)
+    if existing_task:
+        return BenchmarkCreateResponse(data=existing_task)
 
-    return BenchmarkCreateResponse(data=benchmark_task)
+    benchmark_task = benchmark_task_service.create_benchmark_task(
+        db=db, benchmark_in=request_body, api_key=api_key
+    )
+
+    benchmark_task_payload = benchmark_task_service.start_benchmark_task(
+        benchmark_in=request_body, benchmark_task=benchmark_task, api_key=api_key
+    )
+
+    return BenchmarkCreateResponse(data=benchmark_task_payload)
 
 
 @router.get("/benchmarks/{task_id}", response_model=BenchmarkResponse)
