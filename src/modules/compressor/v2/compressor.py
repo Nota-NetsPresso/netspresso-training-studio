@@ -3,19 +3,18 @@ import shutil
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from urllib import request
 
 from loguru import logger
+from sqlalchemy.orm import Session
 
-from src.core.db.session import get_db_session
+from src.configs.settings import settings
 from src.enums.compression import CompressionMethod, RecommendationMethod
-from src.enums.model import Framework, ModelType
+from src.enums.model import Framework
 from src.enums.task import TaskStatus
 from src.exceptions.compression import FailedUploadModelException
-from src.models.compression import CompressionModelResult, CompressionTask
-from src.models.model import Model
-from src.models.training import TrainingTask
+from src.models.compression import CompressionModelResult
 from src.modules.base import NetsPressoBase
 from src.modules.clients.auth import TokenHandler
 from src.modules.clients.auth.client import auth_client
@@ -23,7 +22,6 @@ from src.modules.clients.auth.response_body import UserResponse
 from src.modules.clients.compressor import compressor_client_v2
 from src.modules.clients.compressor.v2.schemas import (
     ModelBase,
-    Options,
     RecommendationOptions,
     RequestCreateCompression,
     RequestCreateModel,
@@ -45,7 +43,7 @@ from src.utils.file import FileHandler
 from src.zenko.storage_handler import ObjectStorageHandler
 
 storage_handler = ObjectStorageHandler()
-BUCKET_NAME = "model"
+
 
 class CompressorV2(NetsPressoBase):
     def __init__(self, api_key: str, verify_ssl: bool = True) -> None:
@@ -190,143 +188,24 @@ class CompressorV2(NetsPressoBase):
             logger.error(f"Upload dataset failed. Error: {e}")
             raise e
 
-    def get_input_model(self, input_model_id: str) -> Model:
-        """Get model by ID.
-
-        Args:
-            input_model_id: ID of the model to retrieve
-            user_id: User ID for verification
-
-        Returns:
-            Model object
-        """
-        with get_db_session() as db:
-            input_model = model_repository.get_by_model_id(db=db, model_id=input_model_id)
-            return input_model
-
-    def save_model(self, model_name: str, project_id: str, user_id: str) -> Model:
-        """Create and save a new compressed model.
-
-        Args:
-            model_name: Name of the model
-            project_id: Project ID to associate with the model
-            user_id: User ID who owns the model
-
-        Returns:
-            Saved model object
-        """
-        model = Model(
-            name=model_name,
-            type=ModelType.COMPRESSED_MODEL,
-            is_retrainable=True,
-            project_id=project_id,
-            user_id=user_id,
-        )
-        return self._save_model(model)
-
-    def _save_model(self, model: Model) -> Model:
-        """Save model to database.
-
-        Args:
-            model: Model object to save
-
-        Returns:
-            Saved model with updated attributes
-        """
-        with get_db_session() as db:
-            model = model_repository.save(db=db, model=model)
-            return model
-
-    def create_compression_task(
-        self,
-        compression_method: CompressionMethod,
-        recommendation_ratio: float,
-        options: Options,
-        input_model_id: str,
-        model_id: str,
-        compression_task_id: str,
-    ) -> CompressionTask:
-        with get_db_session() as db:
-            if compression_task_id:
-                compression_task = CompressionTask(
-                    task_id=compression_task_id,
-                    method=compression_method,
-                    ratio=recommendation_ratio,
-                    options=options,
-                    status=TaskStatus.NOT_STARTED,
-                    input_model_id=input_model_id,
-                    model_id=model_id,
-                    user_id=self.user_info.user_id,
-                )
-            else:
-                compression_task = CompressionTask(
-                    method=compression_method,
-                    ratio=recommendation_ratio,
-                    options=options,
-                    status=TaskStatus.NOT_STARTED,
-                    input_model_id=input_model_id,
-                    model_id=model_id,
-                    user_id=self.user_info.user_id,
-                )
-            compression_task = compression_task_repository.save(db=db, model=compression_task)
-            return compression_task
-
-    def _save_compression_task(self, compression_task: CompressionTask) -> CompressionTask:
-        """Save compression task to database.
-
-        Args:
-            compression_task: Compression task to save
-
-        Returns:
-            Saved compression task with updated attributes
-        """
-        with get_db_session() as db:
-            compression_task = compression_task_repository.save(db=db, model=compression_task)
-            return compression_task
-
-    def get_training_task(self, model_id) -> TrainingTask:
-        with get_db_session() as db:
-            training_task = training_task_repository.get_by_model_id(db=db, model_id=model_id)
-            return training_task
-
-    def _get_enum_value(self, enum_obj: Any) -> str:
-        """Safely extract the string value from an enum or string.
-
-        Args:
-            enum_obj: Enum object or string
-
-        Returns:
-            String value of the enum or the original string
-        """
-        if hasattr(enum_obj, 'value'):
-            return enum_obj.value
-        return str(enum_obj)
-
     def recommendation_compression(
         self,
+        db: Session,
         input_model_id: str,
+        compression_task_id: str,
         compression_method: CompressionMethod,
         recommendation_method: RecommendationMethod,
         recommendation_ratio: float,
         framework: Framework = Framework.PYTORCH,
         options: RecommendationOptions = RecommendationOptions(),
         dataset_path: Optional[str] = None,
-        compression_task_id: Optional[str] = None,
-        output_dir: Optional[str] = None,
     ) -> str:
-        temp_dir = None
-
         try:
             self.validate_token_and_check_credit(service_task=ServiceTask.ADVANCED_COMPRESSION)
 
-            # Handle output directory
-            if output_dir is None:
-                temp_dir = tempfile.mkdtemp(prefix="netspresso_compression_")
-                output_dir = temp_dir
-            else:
-                output_dir = FileHandler.create_unique_folder(folder_path=output_dir)
+            output_dir = tempfile.mkdtemp(prefix="netspresso_compression_")
 
-            input_model = self.get_input_model(input_model_id)
+            input_model = model_repository.get_by_model_id(db=db, model_id=input_model_id)
 
             # Download model to temporary directory
             download_dir = Path(output_dir) / "input_model"
@@ -337,47 +216,17 @@ class CompressorV2(NetsPressoBase):
 
             logger.info(f"Downloading input model from Zenko: {remote_model_path}")
             storage_handler.download_file_from_s3(
-                bucket_name=BUCKET_NAME,
+                bucket_name=settings.MODEL_BUCKET_NAME,
                 local_path=str(local_path),
                 object_path=str(remote_model_path)
             )
             logger.info(f"Downloaded input model from Zenko: {local_path}")
 
-            # Generate model name with safe enum value handling
-            model_name_parts = [
-                input_model.name,
-                self._get_enum_value(compression_method),
-                recommendation_ratio,
-            ]
-            model_name = "_".join(map(str, model_name_parts))
-            logger.info(f"Model name: {model_name}")
-
-            # Save compressed model
-            model = self.save_model(
-                model_name=model_name,
-                project_id=input_model.project_id,
-                user_id=self.user_info.user_id,
-            )
-            object_path = f"{model.user_id}/{input_model.project_id}/{model.model_id}/model.pt"
-            logger.info(f"Object path: {object_path}")
-            model.object_path = object_path
-            model = self._save_model(model)
-
-            # Create compression task
-            compression_task = self.create_compression_task(
-                compression_method=compression_method,
-                recommendation_ratio=recommendation_ratio,
-                options=options,
-                input_model_id=input_model.model_id,
-                model_id=model.model_id,
-                compression_task_id=compression_task_id,
-            )
-
-            # Update status - Pass DB session
+            compression_task = compression_task_repository.get_by_task_id(db=db, task_id=compression_task_id)
             compression_task.status = TaskStatus.IN_PROGRESS
-            compression_task = self._save_compression_task(compression_task)
+            compression_task = compression_task_repository.update(db=db, model=compression_task)
 
-            training_task = self.get_training_task(input_model.model_id)
+            training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
             model_info = self.upload_model(local_path, training_task.input_shapes, framework)
 
             create_compression_request = RequestCreateCompression(
@@ -392,7 +241,7 @@ class CompressorV2(NetsPressoBase):
             )
 
             compression_task.compression_task_uuid = create_compression_response.data.compression_id
-            compression_task = self._save_compression_task(compression_task)
+            compression_task = compression_task_repository.update(db=db, model=compression_task)
 
             if dataset_path and compression_method in [CompressionMethod.PR_NN, CompressionMethod.PR_SNP]:
                 remote_calibration_dataset_path = Path(input_model.object_path) / "calibration_dataset.npy"
@@ -400,7 +249,7 @@ class CompressorV2(NetsPressoBase):
 
                 logger.info(f"Downloading calibration dataset from Zenko: {remote_calibration_dataset_path}")
                 storage_handler.download_file_from_s3(
-                    bucket_name=BUCKET_NAME,
+                    bucket_name=settings.MODEL_BUCKET_NAME,
                     local_path=str(local_calibration_dataset_path),
                     object_path=str(remote_calibration_dataset_path)
                 )
@@ -434,32 +283,32 @@ class CompressorV2(NetsPressoBase):
             compression_info = update_compression_response.data
 
             compression_task.layers = [asdict(available_layer) for available_layer in compression_info.available_layers]
-            compression_task = self._save_compression_task(compression_task)
+            compression_task = compression_task_repository.update(db=db, model=compression_task)
 
-            download_dir = Path(model.object_path).parent
+            download_dir = Path(compression_task.model.object_path).parent
             download_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Downloading compressed model from Zenko: {download_dir}")
 
             # Download compressed model from Compressor Server
-            self.download_model(compression_info.input_model_id, model.object_path)
+            self.download_model(compression_info.input_model_id, compression_task.model.object_path)
 
             # Upload compressed model to Zenko
             storage_handler.upload_file_to_s3(
-                bucket_name=BUCKET_NAME,
-                local_path=model.object_path,
-                object_path=model.object_path
+                bucket_name=settings.MODEL_BUCKET_NAME,
+                local_path=compression_task.model.object_path,
+                object_path=compression_task.model.object_path
             )
 
             if model_info.detail.framework in [Framework.PYTORCH, Framework.ONNX]:
-                export_onnx(object_path, model_info.detail.input_layers)
+                export_onnx(compression_task.model.object_path, model_info.detail.input_layers)
                 # Upload compressed onnx model to Zenko
                 storage_handler.upload_file_to_s3(
-                    bucket_name=BUCKET_NAME,
-                    local_path=Path(model.object_path).with_suffix(".onnx").as_posix(),
-                    object_path=Path(model.object_path).with_suffix(".onnx").as_posix()
+                    bucket_name=settings.MODEL_BUCKET_NAME,
+                    local_path=Path(compression_task.model.object_path).with_suffix(".onnx").as_posix(),
+                    object_path=Path(compression_task.model.object_path).with_suffix(".onnx").as_posix()
                 )
 
-            logger.info(f"Uploaded Compressed Model file to Zenko: {model.object_path}")
+            logger.info(f"Uploaded Compressed Model file to Zenko: {compression_task.model.object_path}")
 
             # Save model results for original and compressed models
             original_result = CompressionModelResult(
@@ -485,8 +334,8 @@ class CompressorV2(NetsPressoBase):
                 result_type='compressed'
             )
 
-            self._save_compression_model_result(original_result)
-            self._save_compression_model_result(compressed_result)
+            compression_model_result_repository.save(db=db, model=original_result)
+            compression_model_result_repository.save(db=db, model=compressed_result)
 
             self.print_remaining_credit(service_task=ServiceTask.ADVANCED_COMPRESSION)
             compression_task.status = TaskStatus.COMPLETED
@@ -500,20 +349,15 @@ class CompressorV2(NetsPressoBase):
             compression_task.error_detail = str(e) if e.args else "Unknown error"
             raise e
         finally:
-            compression_task = self._save_compression_task(compression_task)
+            compression_task = compression_task_repository.update(db=db, model=compression_task)
 
             # Clean up temporary directory (if output directory is a temporary directory)
-            if temp_dir and os.path.exists(temp_dir) and output_dir == temp_dir:
-                logger.info(f"Cleaning up temporary files in: {temp_dir}")
+            if output_dir and os.path.exists(output_dir):
+                logger.info(f"Cleaning up temporary files in: {output_dir}")
                 try:
-                    shutil.rmtree(temp_dir)
-                    logger.info(f"Successfully removed temporary directory: {temp_dir}")
+                    shutil.rmtree(output_dir)
+                    logger.info(f"Successfully removed temporary directory: {output_dir}")
                 except Exception as cleanup_error:
                     logger.error(f"Error cleaning up temporary files: {cleanup_error}")
 
         return compression_task.task_id
-
-    def _save_compression_model_result(self, result: CompressionModelResult) -> CompressionModelResult:
-        with get_db_session() as db:
-            result = compression_model_result_repository.save(db=db, model=result)
-            return result
