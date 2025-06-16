@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header, get_token
-from src.api.v1.schemas.tasks.dataset import EvaluationDatasetPayload
-from src.api.v1.schemas.tasks.device import SupportedDevicesResponse
-from src.api.v1.schemas.tasks.evaluation_task import (
+from src.api.v1.schemas.tasks.common.dataset import EvaluationDatasetPayload
+from src.api.v1.schemas.tasks.common.device import SupportedDevicesResponse
+from src.api.v1.schemas.tasks.evaluation.evaluation_task import (
     EvaluationCreate,
     EvaluationCreatePayload,
     EvaluationCreateResponse,

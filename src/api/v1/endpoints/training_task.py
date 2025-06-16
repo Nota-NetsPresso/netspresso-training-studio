@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_token
-from src.api.v1.schemas.tasks.dataset import LocalTrainingDatasetsResponse
-from src.api.v1.schemas.tasks.hyperparameter import (
+from src.api.v1.schemas.tasks.common.dataset import LocalTrainingDatasetsResponse
+from src.api.v1.schemas.tasks.training.hyperparameter import (
     SupportedModelResponse,
     SupportedOptimizersResponse,
     SupportedSchedulersResponse,
 )
-from src.api.v1.schemas.tasks.training_task import TrainingCreate, TrainingCreateResponse, TrainingResponse
+from src.api.v1.schemas.tasks.training.training_task import TrainingCreate, TrainingCreateResponse, TrainingResponse
 from src.api.v1.schemas.user import Token
 from src.core.db.session import get_db
 from src.services.training_task import training_task_service

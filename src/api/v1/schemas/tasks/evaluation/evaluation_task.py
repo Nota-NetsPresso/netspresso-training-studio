@@ -4,8 +4,8 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from src.api.v1.schemas.tasks.conversion_task import ConversionForEvaluationCreate
-from src.api.v1.schemas.tasks.dataset import EvaluationDatasetPayload
+from src.api.v1.schemas.tasks.common.dataset import EvaluationDatasetPayload
+from src.api.v1.schemas.tasks.conversion.conversion_task import ConversionForEvaluationCreate
 from src.enums.conversion import EvaluationTargetFramework
 from src.enums.training import StorageLocation
 

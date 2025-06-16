@@ -5,10 +5,10 @@ from typing import List
 
 from celery import chain, signature
 
-from src.api.v1.schemas.tasks.dataset import DatasetCreate
-from src.api.v1.schemas.tasks.environment import EnvironmentCreate
-from src.api.v1.schemas.tasks.hyperparameter import HyperparameterCreate
-from src.api.v1.schemas.tasks.training_task import TrainingCreate
+from src.api.v1.schemas.tasks.common.dataset import DatasetCreate
+from src.api.v1.schemas.tasks.training.environment import EnvironmentCreate
+from src.api.v1.schemas.tasks.training.hyperparameter import HyperparameterCreate
+from src.api.v1.schemas.tasks.training.training_task import TrainingCreate
 from src.core.db.session import SessionLocal
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation

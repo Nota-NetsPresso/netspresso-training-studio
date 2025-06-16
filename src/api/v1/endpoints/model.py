@@ -5,10 +5,10 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_token
 from src.api.v1.schemas.model import ModelDetailResponse, ModelsResponse, ModelUrlResponse
-from src.api.v1.schemas.tasks.benchmark_task import BenchmarksResponse
-from src.api.v1.schemas.tasks.compression_task import CompressionsResponse
-from src.api.v1.schemas.tasks.conversion_task import ConversionsResponse
-from src.api.v1.schemas.tasks.evaluation_task import EvaluationsResponse
+from src.api.v1.schemas.tasks.benchmark.benchmark_task import BenchmarksResponse
+from src.api.v1.schemas.tasks.compression.compression_task import CompressionsResponse
+from src.api.v1.schemas.tasks.conversion.conversion_task import ConversionsResponse
+from src.api.v1.schemas.tasks.evaluation.evaluation_task import EvaluationsResponse
 from src.api.v1.schemas.user import Token
 from src.core.db.session import get_db
 from src.enums.task import RetrievalTaskType

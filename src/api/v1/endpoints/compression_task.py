@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header
-from src.api.v1.schemas.tasks.compression_task import (
+from src.api.v1.schemas.tasks.compression.compression_task import (
     CompressionCreate,
     CompressionCreateResponse,
     CompressionResponse,
