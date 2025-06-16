@@ -7,6 +7,7 @@ from src.api.v1.schemas.tasks.compression.compression_task import (
     CompressionCreate,
     CompressionCreatePayload,
     CompressionPayload,
+    ModelResult,
 )
 from src.enums.compression import CompressionMethod
 from src.enums.model import ModelType
@@ -90,6 +91,11 @@ class CompressionTaskService:
             recommendation_ratio=compression_in.ratio,
         )
 
+        model_results = [
+            ModelResult(result_type="original"),
+            ModelResult(result_type="compressed")
+        ]
+
         compression_task = CompressionTask(
             method=compression_in.method,
             ratio=compression_in.ratio,
@@ -98,6 +104,7 @@ class CompressionTaskService:
             input_model_id=compression_in.input_model_id,
             model_id=compressed_model.model_id,
             user_id=input_model.user_id,
+            model_results=model_results,
         )
         compression_task = compression_task_repository.save(db=db, model=compression_task)
 

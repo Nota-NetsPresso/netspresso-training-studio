@@ -188,6 +188,16 @@ class CompressorV2(NetsPressoBase):
             logger.error(f"Upload dataset failed. Error: {e}")
             raise e
 
+    def update_model_result(self, model_results, result_type, **kwargs):
+        for result in model_results:
+            if result.result_type == result_type:
+                for k, v in kwargs.items():
+                    setattr(result, k, v)
+                return
+        # If not found, optionally add a new result (uncomment if needed)
+        # from src.api.v1.schemas.tasks.compression.compression_task import ModelResult
+        # model_results.append(ModelResult(result_type=result_type, **kwargs))
+
     def recommendation_compression(
         self,
         db: Session,
@@ -311,31 +321,32 @@ class CompressorV2(NetsPressoBase):
             logger.info(f"Uploaded Compressed Model file to Zenko: {compression_task.model.object_path}")
 
             # Save model results for original and compressed models
-            original_result = CompressionModelResult(
+            self.update_model_result(
+                compression_task.model_results,
+                "original",
                 size=model_info.file_size_in_mb,
                 flops=model_info.detail.flops,
                 number_of_parameters=model_info.detail.trainable_parameters + model_info.detail.non_trainable_parameters,
                 trainable_parameters=model_info.detail.trainable_parameters,
                 non_trainable_parameters=model_info.detail.non_trainable_parameters,
                 number_of_layers=model_info.detail.number_of_layers if model_info.detail.number_of_layers != 0 else None,
-                compression_task_id=compression_task.task_id,
-                result_type='original'
+                result_type="original"
             )
 
             compressed_model_info = self.get_model(model_id=compression_info.input_model_id)
-            compressed_result = CompressionModelResult(
+            self.update_model_result(
+                compression_task.model_results,
+                "compressed",
                 size=compressed_model_info.file_size_in_mb,
                 flops=compressed_model_info.detail.flops,
                 number_of_parameters=compressed_model_info.detail.trainable_parameters + compressed_model_info.detail.non_trainable_parameters,
                 trainable_parameters=compressed_model_info.detail.trainable_parameters,
                 non_trainable_parameters=compressed_model_info.detail.non_trainable_parameters,
                 number_of_layers=compressed_model_info.detail.number_of_layers if compressed_model_info.detail.number_of_layers != 0 else None,
-                compression_task_id=compression_task.task_id,
-                result_type='compressed'
+                result_type="compressed"
             )
 
-            compression_model_result_repository.save(db=db, model=original_result)
-            compression_model_result_repository.save(db=db, model=compressed_result)
+            compression_task = compression_task_repository.update(db=db, model=compression_task)
 
             self.print_remaining_credit(service_task=ServiceTask.ADVANCED_COMPRESSION)
             compression_task.status = TaskStatus.COMPLETED
