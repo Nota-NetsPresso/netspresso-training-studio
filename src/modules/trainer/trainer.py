@@ -585,11 +585,9 @@ class Trainer:
         training_task_id: str,
         output_dir: Optional[str] = "./outputs",
     ) -> TrainingTask:
-        # Validate configuration and initialize
-        self._validate_config()
-        self._apply_img_size()
+        temp_dir = Path(tempfile.mkdtemp(prefix="netspresso_training_"))
 
-        temp_dir = Path(tempfile.mkdtemp(prefix="training_task_"))
+        self._apply_img_size()
 
         # Setup logging
         self._setup_logging(output_dir, temp_dir.name)
