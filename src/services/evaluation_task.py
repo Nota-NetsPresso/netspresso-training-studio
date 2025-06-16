@@ -563,6 +563,16 @@ class EvaluationTaskService:
                 total_count=0
             )
 
+        if evaluation_tasks[0].is_dataset_deleted:
+            logger.info(f"Dataset {dataset_id} is deleted. Returning empty results.")
+            return EvaluationResultsPayload(
+                model_id=converted_model_id,
+                dataset_id=dataset_id,
+                results=[],
+                result_count=0,
+                total_count=0
+            )
+
         # Create temporary directory for downloads
         temp_dir = tempfile.mkdtemp(prefix="evaluation_results_")
         temp_path = Path(temp_dir)
