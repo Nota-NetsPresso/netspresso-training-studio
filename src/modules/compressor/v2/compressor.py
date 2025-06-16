@@ -322,28 +322,26 @@ class CompressorV2(NetsPressoBase):
 
             # Save model results for original and compressed models
             self.update_model_result(
-                compression_task.model_results,
-                "original",
+                model_results=compression_task.model_results,
+                result_type="original",
                 size=model_info.file_size_in_mb,
                 flops=model_info.detail.flops,
                 number_of_parameters=model_info.detail.trainable_parameters + model_info.detail.non_trainable_parameters,
                 trainable_parameters=model_info.detail.trainable_parameters,
                 non_trainable_parameters=model_info.detail.non_trainable_parameters,
                 number_of_layers=model_info.detail.number_of_layers if model_info.detail.number_of_layers != 0 else None,
-                result_type="original"
             )
 
             compressed_model_info = self.get_model(model_id=compression_info.input_model_id)
             self.update_model_result(
-                compression_task.model_results,
-                "compressed",
+                model_results=compression_task.model_results,
+                result_type="compressed",
                 size=compressed_model_info.file_size_in_mb,
                 flops=compressed_model_info.detail.flops,
                 number_of_parameters=compressed_model_info.detail.trainable_parameters + compressed_model_info.detail.non_trainable_parameters,
                 trainable_parameters=compressed_model_info.detail.trainable_parameters,
                 non_trainable_parameters=compressed_model_info.detail.non_trainable_parameters,
                 number_of_layers=compressed_model_info.detail.number_of_layers if compressed_model_info.detail.number_of_layers != 0 else None,
-                result_type="compressed"
             )
 
             compression_task = compression_task_repository.update(db=db, model=compression_task)
