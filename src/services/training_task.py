@@ -283,7 +283,7 @@ class TrainingTaskService:
             task=training_in.task,
             framework="pytorch",
             input_shapes=[InputShape(batch=1, channel=3, dimension=[img_size, img_size]).__dict__],
-            status=TaskStatus.IN_PROGRESS,
+            status=TaskStatus.NOT_STARTED,
             hyperparameter=hyperparameter,
             environment=environment,
             model_id=model_obj.model_id,

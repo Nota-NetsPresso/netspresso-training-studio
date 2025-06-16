@@ -599,6 +599,13 @@ class Trainer:
         configs = self._create_training_configs()
 
         training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
+        training_task = self.set_dataset(
+            training_task=training_task,
+            dataset_root_path=training_task.dataset.path,
+            dataset_name=training_task.dataset.name,
+        )
+        training_task.status = TaskStatus.IN_PROGRESS
+        training_task = training_task_repository.update(db=db, model=training_task)
 
         try:
             self._execute_training(gpus, configs)
