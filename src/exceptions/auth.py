@@ -17,7 +17,7 @@ class UnauthorizedUserAccessException(ExceptionBase):
 class InvalidApiKeyException(ExceptionBase):
     def __init__(self):
         super().__init__(
-            data=AdditionalData(origin=Origin.SERVICE),
+            data=AdditionalData(origin=Origin.ROUTER),
             error_code="auth40101",
             status_code=status.HTTP_401_UNAUTHORIZED,
             name=self.__class__.__name__,
