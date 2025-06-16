@@ -39,7 +39,7 @@ def create_benchmark_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> BenchmarkCreateResponse:
-    existing_task = benchmark_task_service.check_benchmark_task_exists(db=db, benchmark_in=request_body, api_key=api_key)
+    existing_task = benchmark_task_service.check_benchmark_task_exists(db=db, benchmark_in=request_body)
     if existing_task:
         return BenchmarkCreateResponse(data=existing_task)
 
