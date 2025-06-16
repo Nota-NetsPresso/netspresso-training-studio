@@ -198,6 +198,13 @@ class EvaluationTaskRepository(BaseRepository[EvaluationTask]):
             time_sort=time_sort,
         )
 
+    def get_all_by_dataset_id(self, db: Session, dataset_id: str) -> List[EvaluationTask]:
+        conditions = [self.model.dataset_id == dataset_id]
+        return self.find_all(
+            db=db,
+            conditions=conditions,
+        )
+
 
 class EvaluationDatasetRepository(BaseRepository[EvaluationDataset]):
     def get_by_dataforge_dataset_id(self, db: Session, dataset_id: str) -> Optional[EvaluationDataset]:

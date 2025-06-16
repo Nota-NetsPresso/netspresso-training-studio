@@ -105,11 +105,11 @@ def get_evaluation_tasks(
 def get_unique_evaluation_datasets(
     converted_model_id: str = Path(..., description="Converted Model ID to get unique datasets for"),
     db: Session = Depends(get_db),
-    api_key: str = Depends(api_key_header),
+    token: Token = Depends(get_token),
 ) -> EvaluationDatasetsResponse:
     evaluation_datasets = evaluation_task_service.get_unique_datasets_by_model_id(
         db=db,
-        api_key=api_key,
+        token=token.access_token,
         model_id=converted_model_id
     )
 
@@ -133,12 +133,12 @@ def get_evaluation_results(
     start: int = Query(0, description="Pagination start index"),
     size: int = Query(20, description="Page size (number of images)"),
     db: Session = Depends(get_db),
-    api_key: str = Depends(api_key_header),
+    token: Token = Depends(get_token),
 ) -> EvaluationResultsResponse:
     """Get detailed evaluation results for a specific model and dataset, including predictions and result images."""
     evaluation_result = evaluation_task_service.get_evaluation_result_details(
         db=db,
-        api_key=api_key,
+        token=token.access_token,
         converted_model_id=converted_model_id,
         dataset_id=dataset_id,
         start=start,
@@ -157,6 +157,21 @@ def delete_evaluation_task(
     evaluation_task = evaluation_task_service.delete_evaluation_task(
         db=db,
         task_id=task_id,
+        api_key=api_key
+    )
+
+    return EvaluationResponse(data=evaluation_task)
+
+
+@router.delete("/evaluations/datasets/{dataset_id}", response_model=EvaluationResponse)
+def delete_evaluation_dataset(
+    dataset_id: str,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(api_key_header),
+) -> EvaluationResponse:
+    evaluation_task = evaluation_task_service.delete_evaluation_dataset(
+        db=db,
+        dataset_id=dataset_id,
         api_key=api_key
     )
 

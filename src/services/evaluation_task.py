@@ -37,7 +37,7 @@ from src.models.evaluation import EvaluationDataset, EvaluationTask
 from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.modules.converter.v2.converter import ConverterV2
 from src.repositories.conversion import conversion_task_repository
-from src.repositories.evaluation import evaluation_task_repository
+from src.repositories.evaluation import evaluation_dataset_repository, evaluation_task_repository
 from src.repositories.model import model_repository
 from src.services.project import project_service
 from src.services.user import user_service
@@ -315,22 +315,20 @@ class EvaluationTaskService:
     def count_evaluation_task_by_user_id(
         self,
         db: Session,
-        api_key: str,
+        token: str,
         model_id: str,
     ) -> int:
-        netspresso = NetsPresso(api_key=api_key)
-        evaluator = netspresso.evaluator()
-
-        return evaluator.count_evaluation_task_by_user_id(
+        user_info = user_service.get_user_info(token=token)
+        return evaluation_task_repository.count_by_user_id_and_model_id(
             db=db,
-            user_id=netspresso.user_info.user_id,
+            user_id=user_info.user_id,
             model_id=model_id
         )
 
     def get_unique_datasets_by_model_id(
         self,
         db: Session,
-        api_key: str,
+        token: str,
         model_id: str,
     ) -> List[EvaluationDataset]:
         """Get unique dataset IDs used for evaluating a specific model.
@@ -343,19 +341,23 @@ class EvaluationTaskService:
         Returns:
             List[str]: List of unique dataset IDs
         """
-        netspresso = NetsPresso(api_key=api_key)
-        evaluator = netspresso.evaluator()
-
-        return evaluator.get_unique_datasets_by_model_id(
+        user_info = user_service.get_user_info(token=token)
+        dataset_ids = evaluation_task_repository.get_unique_datasets_by_model_id(
             db=db,
-            user_id=netspresso.user_info.user_id,
+            user_id=user_info.user_id,
             model_id=model_id
         )
+        evaluation_datasets = evaluation_dataset_repository.get_by_dataset_ids(
+            db=db,
+            dataset_ids=dataset_ids
+        )
+
+        return evaluation_datasets
 
     def get_evaluation_results_by_model_and_dataset(
         self,
         db: Session,
-        api_key: str,
+        token: str,
         model_id: str,
         dataset_id: str,
     ) -> List[EvaluationTask]:
@@ -370,17 +372,13 @@ class EvaluationTaskService:
         Returns:
             List[EvaluationTask]: List of evaluation results
         """
-        netspresso = NetsPresso(api_key=api_key)
-        evaluator = netspresso.evaluator()
-
-        evaluation_tasks = evaluator.get_completed_evaluation_results_by_model_and_dataset(
+        user_info = user_service.get_user_info(token=token)
+        return evaluation_task_repository.get_all_by_model_and_dataset(
             db=db,
-            user_id=netspresso.user_info.user_id,
+            user_id=user_info.user_id,
             model_id=model_id,
             dataset_id=dataset_id
         )
-
-        return evaluation_tasks
 
     def get_image_urls_from_s3(self, user_id: str, task_id: str) -> Tuple[List[str], Dict[str, str]]:
         """
@@ -528,7 +526,7 @@ class EvaluationTaskService:
     def get_evaluation_result_details(
         self,
         db: Session,
-        api_key: str,
+        token: str,
         converted_model_id: str,
         dataset_id: str,
         start: int = 0,
@@ -547,19 +545,26 @@ class EvaluationTaskService:
         Returns:
             EvaluationResultsPayload: Detailed evaluation results with predictions and image URLs
         """
-        netspresso = NetsPresso(api_key=api_key)
-        evaluator = netspresso.evaluator()
-
         # Get evaluation tasks for this model and dataset
-        evaluation_tasks = evaluator.get_completed_evaluation_results_by_model_and_dataset(
+        evaluation_tasks = self.get_evaluation_results_by_model_and_dataset(
             db=db,
-            user_id=netspresso.user_info.user_id,
+            token=token,
             model_id=converted_model_id,
             dataset_id=dataset_id
         )
 
         if not evaluation_tasks:
             logger.warning(f"No evaluation tasks found for model {converted_model_id} and dataset {dataset_id}")
+            return EvaluationResultsPayload(
+                model_id=converted_model_id,
+                dataset_id=dataset_id,
+                results=[],
+                result_count=0,
+                total_count=0
+            )
+
+        if evaluation_tasks[0].is_dataset_deleted:
+            logger.info(f"Dataset {dataset_id} is deleted. Returning empty results.")
             return EvaluationResultsPayload(
                 model_id=converted_model_id,
                 dataset_id=dataset_id,
@@ -679,6 +684,14 @@ class EvaluationTaskService:
         latest_status = evaluation_task.status
 
         return latest_status, task_ids
+
+    def delete_evaluation_dataset(self, db: Session, dataset_id: str, api_key: str) -> EvaluationPayload:
+        evaluation_tasks = evaluation_task_repository.get_all_by_dataset_id(db=db, dataset_id=dataset_id)
+        for evaluation_task in evaluation_tasks:
+            evaluation_task.is_dataset_deleted = True
+            evaluation_task_repository.update(db=db, model=evaluation_task)
+
+        return EvaluationPayload.model_validate(evaluation_task)
 
 
 evaluation_task_service = EvaluationTaskService()
