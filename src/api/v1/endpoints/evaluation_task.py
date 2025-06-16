@@ -101,16 +101,16 @@ def get_evaluation_tasks(
     )
 
 
-@router.get("/evaluations/{converted_model_id}/datasets", response_model=EvaluationDatasetsResponse, status_code=200)
+@router.get("/evaluations/{model_id}/datasets", response_model=EvaluationDatasetsResponse, status_code=200)
 def get_unique_evaluation_datasets(
-    converted_model_id: str = Path(..., description="Converted Model ID to get unique datasets for"),
+    model_id: str = Path(..., description="Converted Model ID to get unique datasets for"),
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> EvaluationDatasetsResponse:
     evaluation_datasets = evaluation_task_service.get_unique_datasets_by_model_id(
         db=db,
         token=token.access_token,
-        model_id=converted_model_id
+        model_id=model_id
     )
 
     datasets = [
@@ -119,16 +119,16 @@ def get_unique_evaluation_datasets(
     ]
 
     response_data = EvaluationDatasetsPayload(
-        model_id=converted_model_id,
+        model_id=model_id,
         datasets=datasets
     )
 
     return EvaluationDatasetsResponse(data=response_data)
 
 
-@router.get("/evaluations/{converted_model_id}/datasets/{dataset_id}/results", response_model=EvaluationResultsResponse, status_code=200)
+@router.get("/evaluations/{model_id}/datasets/{dataset_id}/results", response_model=EvaluationResultsResponse, status_code=200)
 def get_evaluation_results(
-    converted_model_id: str = Path(..., description="Converted Model ID"),
+    model_id: str = Path(..., description="Converted Model ID"),
     dataset_id: str = Path(..., description="Dataset ID"),
     start: int = Query(0, description="Pagination start index"),
     size: int = Query(20, description="Page size (number of images)"),
@@ -139,7 +139,7 @@ def get_evaluation_results(
     evaluation_result = evaluation_task_service.get_evaluation_result_details(
         db=db,
         token=token.access_token,
-        converted_model_id=converted_model_id,
+        model_id=model_id,
         dataset_id=dataset_id,
         start=start,
         size=size
