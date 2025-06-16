@@ -344,10 +344,12 @@ def train_model(
         logger.info(f"Configuring model and training parameters for task_id: {training_task_id}")
         configure_model_and_training(trainer, training_in, input_model_info)
 
-        trainer.set_dataset(
+        training_task = trainer.set_dataset(
+            training_task=training_task,
             dataset_root_path=training_task.dataset.path,
             dataset_name=training_task.dataset.name,
         )
+        training_task = training_task_repository.update(db=db, training_task=training_task)
 
         # Execute training
         logger.info(f"Starting training with task_id: {training_task_id}")
