@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import APIKeyHeader
 
 from src.api.v1.schemas.user import Token
+from src.exceptions.auth import InvalidApiKeyException
 from src.modules.clients.auth import auth_client
 
 # Define the header key
@@ -27,7 +28,4 @@ def get_token(api_key: str = Depends(api_key_header)) -> Token:
     try:
         return auth_client.login(api_key=api_key)
     except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials",
-        )
+        raise InvalidApiKeyException()
