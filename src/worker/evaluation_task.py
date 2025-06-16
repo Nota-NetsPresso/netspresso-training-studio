@@ -362,7 +362,6 @@ def chain_conversion_and_evaluation(
         kwargs={
             "api_key": api_key,
             "input_model_path": input_model_path,
-            "output_dir": output_dir,
             "target_framework": target_framework,
             "target_device_name": target_device_name,
             "target_data_type": target_data_type,
