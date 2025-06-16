@@ -349,7 +349,7 @@ def train_model(
             dataset_root_path=training_task.dataset.path,
             dataset_name=training_task.dataset.name,
         )
-        training_task = training_task_repository.update(db=db, training_task=training_task)
+        training_task = training_task_repository.update(db=db, model=training_task)
 
         # Execute training
         logger.info(f"Starting training with task_id: {training_task_id}")
