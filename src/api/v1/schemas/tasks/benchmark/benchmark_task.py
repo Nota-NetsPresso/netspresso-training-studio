@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.v1.schemas.base import ResponseItem, ResponsePaginationItems
-from src.api.v1.schemas.tasks.device import (
+from src.api.v1.schemas.tasks.common.device import (
     BenchmarkResultPayload,
     HardwareTypePayload,
     PrecisionForBenchmarkPayload,

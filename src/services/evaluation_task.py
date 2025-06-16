@@ -6,17 +6,17 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.conversion_task import (
-    TargetFrameworkPayload,
-)
-from src.api.v1.schemas.tasks.device import (
+from src.api.v1.schemas.tasks.common.device import (
     HardwareTypePayload,
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
     SupportedDevicePayload,
     SupportedDeviceResponse,
 )
-from src.api.v1.schemas.tasks.evaluation_task import (
+from src.api.v1.schemas.tasks.conversion.conversion_task import (
+    TargetFrameworkPayload,
+)
+from src.api.v1.schemas.tasks.evaluation.evaluation_task import (
     BoundingBox,
     EvaluationCreate,
     EvaluationPayload,

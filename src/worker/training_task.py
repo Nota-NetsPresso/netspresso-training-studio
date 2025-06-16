@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from loguru import logger
 
-from src.api.v1.schemas.tasks.training_task import TrainingCreate
+from src.api.v1.schemas.tasks.training.training_task import TrainingCreate
 from src.configs.settings import settings
 from src.core.db.session import get_db_session
 from src.enums.conversion import EvaluationTargetFramework

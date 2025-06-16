@@ -4,19 +4,19 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.conversion_task import (
-    ConversionCreate,
-    ConversionCreatePayload,
-    ConversionPayload,
-    TargetFrameworkPayload,
-)
-from src.api.v1.schemas.tasks.device import (
+from src.api.v1.schemas.tasks.common.device import (
     HardwareTypePayload,
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
     SupportedDevicePayload,
     SupportedDeviceResponse,
     TargetDevicePayload,
+)
+from src.api.v1.schemas.tasks.conversion.conversion_task import (
+    ConversionCreate,
+    ConversionCreatePayload,
+    ConversionPayload,
+    TargetFrameworkPayload,
 )
 from src.enums.conversion import SourceFramework
 from src.enums.task import TaskStatus

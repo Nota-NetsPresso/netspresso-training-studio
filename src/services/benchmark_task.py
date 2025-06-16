@@ -4,14 +4,14 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.benchmark_task import (
+from src.api.v1.schemas.tasks.benchmark.benchmark_task import (
     BenchmarkCreate,
     BenchmarkCreatePayload,
     BenchmarkPayload,
     BenchmarkResponse,
     TargetFrameworkPayload,
 )
-from src.api.v1.schemas.tasks.device import (
+from src.api.v1.schemas.tasks.common.device import (
     BenchmarkResultPayload,
     HardwareTypePayload,
     PrecisionForBenchmarkPayload,

@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header
-from src.api.v1.schemas.tasks.conversion_task import (
+from src.api.v1.schemas.tasks.common.device import SupportedDevicesResponse
+from src.api.v1.schemas.tasks.conversion.conversion_task import (
     ConversionCreate,
     ConversionCreateResponse,
     ConversionResponse,
 )
-from src.api.v1.schemas.tasks.device import SupportedDevicesResponse
 from src.core.db.session import get_db
 from src.enums.conversion import SourceFramework
 from src.services.conversion_task import conversion_task_service

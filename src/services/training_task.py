@@ -5,13 +5,13 @@ from typing import Any, Dict, List
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.dataset import LocalTrainingDatasetPayload
-from src.api.v1.schemas.tasks.hyperparameter import (
+from src.api.v1.schemas.tasks.common.dataset import LocalTrainingDatasetPayload
+from src.api.v1.schemas.tasks.training.hyperparameter import (
     OptimizerPayload,
     SchedulerPayload,
     TrainerModel,
 )
-from src.api.v1.schemas.tasks.training_task import (
+from src.api.v1.schemas.tasks.training.training_task import (
     FrameworkPayload,
     InputShape,
     PretrainedModelPayload,

@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.compression_task import (
+from src.api.v1.schemas.tasks.compression.compression_task import (
     CompressionCreate,
     CompressionCreatePayload,
     CompressionPayload,
