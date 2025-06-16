@@ -33,7 +33,7 @@ class CompressionTaskService:
 
     def create_compressed_model(self, db: Session, model: Model, compression_method: CompressionMethod, recommendation_ratio: float) -> Model:
         model_id = generate_uuid(entity="model")
-        base_object_path = f"{model.user_id}/{model.project_id}/{model_id}"
+        base_object_path = f"{model.user_id}/{model.project_id}/{model_id}/model.pt"
         model_name = self._generate_model_name(
             input_model_name=model.name,
             compression_method=compression_method,
