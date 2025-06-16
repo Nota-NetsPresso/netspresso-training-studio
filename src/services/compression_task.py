@@ -23,7 +23,7 @@ class CompressionTaskService:
     def _generate_model_name(self, input_model_name: str, compression_method: CompressionMethod, recommendation_ratio: float) -> str:
         model_name_parts = [
             input_model_name,
-            compression_method,
+            compression_method.value,
             recommendation_ratio,
         ]
         model_name = "_".join(map(str, model_name_parts))
