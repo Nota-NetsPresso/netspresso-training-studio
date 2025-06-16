@@ -158,25 +158,31 @@ class BenchmarkTaskService:
         return None
 
     def create_benchmark_task(self, db: Session, benchmark_in: BenchmarkCreate, api_key: str) -> BenchmarkTask:
-        logger.info(f"Creating benchmark task for {benchmark_in.input_model_id}")
+        try:
+            logger.info(f"Creating benchmark task for {benchmark_in.input_model_id}")
 
-        input_model = model_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+            input_model = model_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+            logger.info(f"Input model: {input_model}")
 
-        conversion_task = conversion_task_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+            conversion_task = conversion_task_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+            logger.info(f"Conversion task: {conversion_task}")
 
-        benchmark_task = BenchmarkTask(
-            framework=conversion_task.framework,
-            device_name=benchmark_in.device_name,
-            software_version=benchmark_in.software_version,
-            precision=conversion_task.precision,
-            status=TaskStatus.NOT_STARTED,
-            input_model_id=benchmark_in.input_model_id,
-            user_id=input_model.user_id,
-        )
-        benchmark_task.result = BenchmarkResult(task_id=benchmark_task.task_id)
-        benchmark_task = benchmark_task_repository.save(db=db, model=benchmark_task)
+            benchmark_task = BenchmarkTask(
+                framework=conversion_task.framework,
+                device_name=benchmark_in.device_name,
+                software_version=benchmark_in.software_version,
+                precision=conversion_task.precision,
+                status=TaskStatus.NOT_STARTED,
+                input_model_id=benchmark_in.input_model_id,
+                user_id=input_model.user_id,
+            )
+            benchmark_task.result = BenchmarkResult(task_id=benchmark_task.task_id)
+            benchmark_task = benchmark_task_repository.save(db=db, model=benchmark_task)
 
-        return benchmark_task
+            return benchmark_task
+        except Exception as e:
+            logger.error(f"Error creating benchmark task: {e}")
+            raise e
 
     def start_benchmark_task(
         self,
