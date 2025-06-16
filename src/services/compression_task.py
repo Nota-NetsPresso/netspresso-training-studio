@@ -13,7 +13,7 @@ from src.enums.compression import CompressionMethod
 from src.enums.model import ModelType
 from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
-from src.models.compression import CompressionTask
+from src.models.compression import CompressionModelResult, CompressionTask
 from src.models.model import Model
 from src.repositories.compression import compression_task_repository
 from src.repositories.model import model_repository
@@ -92,8 +92,8 @@ class CompressionTaskService:
         )
 
         model_results = [
-            ModelResult(result_type="original"),
-            ModelResult(result_type="compressed")
+            CompressionModelResult(result_type="original"),
+            CompressionModelResult(result_type="compressed")
         ]
 
         compression_task = CompressionTask(
