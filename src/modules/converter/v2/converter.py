@@ -342,49 +342,55 @@ class ConverterV2(NetsPressoBase):
         Returns:
             bool: True if status was updated, False if task is still in progress
         """
-        conversion_task = conversion_task_repository.get_by_task_id(db=db, task_id=task_id)
-        if not conversion_task:
-            logger.error(f"Conversion task {task_id} not found")
+        try:
+            conversion_task = conversion_task_repository.get_by_task_id(db=db, task_id=task_id)
+            if not conversion_task:
+                logger.error(f"Conversion task {task_id} not found")
+                return True
+
+            if not conversion_task.convert_task_uuid:
+                conversion_task.status = TaskStatus.COMPLETED
+                conversion_task_repository.save(db, conversion_task)
+                logger.info(f"Conversion task {task_id} status updated to {conversion_task.status}")
+                return True
+
+            launcher_status = self.get_conversion_task(conversion_task.convert_task_uuid)
+            status_updated = False
+
+            if launcher_status.status == TaskStatusForDisplay.FINISHED:
+                conversion_task.status = TaskStatus.COMPLETED
+                status_updated = True
+                model = model_repository.get_by_model_id(db=db, model_id=conversion_task.model_id)
+                download_dir = Path(model.object_path).parent
+                download_dir.mkdir(parents=True, exist_ok=True)
+                self._download_converted_model(
+                    convert_task=launcher_status,
+                    local_path=model.object_path,
+                )
+                logger.info(f"Downloaded model to {model.object_path}")
+                storage_handler.upload_file_to_s3(
+                    bucket_name=settings.MODEL_BUCKET_NAME,
+                    local_path=model.object_path,
+                    object_path=model.object_path
+                )
+                logger.info(f"Uploaded Converted Model file to Zenko: {model.object_path}")
+
+            elif launcher_status.status in [TaskStatusForDisplay.ERROR, TaskStatusForDisplay.TIMEOUT]:
+                conversion_task.status = TaskStatus.ERROR
+                conversion_task.error_detail = launcher_status.error_log
+                status_updated = True
+
+            elif launcher_status.status == TaskStatusForDisplay.USER_CANCEL:
+                conversion_task.status = TaskStatus.STOPPED
+                status_updated = True
+
+            if status_updated:
+                conversion_task = conversion_task_repository.save(db=db, model=conversion_task)
+                logger.info(f"Conversion task {task_id} status updated to {conversion_task.status}")
+
+            return status_updated
+
+        except Exception as e:
+            logger.error(f"Error updating conversion task status: {e}")
+
             return True
-
-        if not conversion_task.convert_task_uuid:
-            conversion_task.status = TaskStatus.COMPLETED
-            conversion_task_repository.save(db, conversion_task)
-            logger.info(f"Conversion task {task_id} status updated to {conversion_task.status}")
-            return True
-
-        launcher_status = self.get_conversion_task(conversion_task.convert_task_uuid)
-        status_updated = False
-
-        if launcher_status.status == TaskStatusForDisplay.FINISHED:
-            conversion_task.status = TaskStatus.COMPLETED
-            status_updated = True
-            model = model_repository.get_by_model_id(db=db, model_id=conversion_task.model_id)
-            download_dir = Path(model.object_path).parent
-            download_dir.mkdir(parents=True, exist_ok=True)
-            self._download_converted_model(
-                convert_task=launcher_status,
-                local_path=model.object_path,
-            )
-            logger.info(f"Downloaded model to {model.object_path}")
-            storage_handler.upload_file_to_s3(
-                bucket_name=settings.MODEL_BUCKET_NAME,
-                local_path=model.object_path,
-                object_path=model.object_path
-            )
-            logger.info(f"Uploaded Converted Model file to Zenko: {model.object_path}")
-
-        elif launcher_status.status in [TaskStatusForDisplay.ERROR, TaskStatusForDisplay.TIMEOUT]:
-            conversion_task.status = TaskStatus.ERROR
-            conversion_task.error_detail = launcher_status.error_log
-            status_updated = True
-
-        elif launcher_status.status == TaskStatusForDisplay.USER_CANCEL:
-            conversion_task.status = TaskStatus.STOPPED
-            status_updated = True
-
-        if status_updated:
-            conversion_task_repository.save(db, conversion_task)
-            logger.info(f"Conversion task {task_id} status updated to {conversion_task.status}")
-
-        return status_updated
