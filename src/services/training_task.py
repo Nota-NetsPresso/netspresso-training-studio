@@ -272,8 +272,12 @@ class TrainingTaskService:
                 pretrained_model = training_in.pretrained_model
             else:
                 logger.info(f"Training with input model: {training_in.input_model_id}")
-                compression_task = compression_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
-                training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
+                input_model = model_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                if input_model.type == ModelType.TRAINED_MODEL:
+                    training_task = training_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                else:
+                    compression_task = compression_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                    training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
                 pretrained_model = training_task.pretrained_model
 
             # Create training task
