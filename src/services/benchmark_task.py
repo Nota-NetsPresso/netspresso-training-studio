@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import List, Optional
 
 from loguru import logger
@@ -21,7 +20,7 @@ from src.api.v1.schemas.tasks.common.device import (
 )
 from src.enums.model import Framework, ModelType
 from src.enums.task import TaskStatus
-from src.models.base import generate_uuid
+from src.exceptions.benchmark import InvalidBenchmarkModelException
 from src.models.benchmark import BenchmarkResult, BenchmarkTask
 from src.modules.benchmarker.v2.benchmarker import BenchmarkerV2
 from src.modules.clients.enums.task import TaskStatusForDisplay
@@ -31,7 +30,6 @@ from src.repositories.benchmark import benchmark_task_repository
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.model import model_repository
 from src.services.conversion_task import conversion_task_service
-from src.services.project import project_service
 from src.worker.benchmark_task import benchmark_model
 
 
@@ -74,7 +72,7 @@ class BenchmarkTaskService:
 
         model = model_repository.get_by_model_id(db=db, model_id=model_id)
         if model.type not in [ModelType.TRAINED_MODEL, ModelType.COMPRESSED_MODEL]:
-            raise ValueError("Model is not a trained or compressed model")
+            raise InvalidBenchmarkModelException(model_id=model_id, model_type=model.type)
 
         unique_conversions = conversion_task_repository.get_unique_completed_tasks(db=db, model_id=model_id)
         logger.info(f"Found {len(unique_conversions)} unique completed conversions")
