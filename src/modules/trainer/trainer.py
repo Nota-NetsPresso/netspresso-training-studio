@@ -585,20 +585,24 @@ class Trainer:
         training_task_id: str,
         output_dir: Optional[str] = "./outputs",
     ) -> TrainingTask:
-        # Validate configuration and initialize
-        self._validate_config()
-        self._apply_img_size()
+        temp_dir = Path(tempfile.mkdtemp(prefix="netspresso_training_"))
 
-        temp_dir = Path(tempfile.mkdtemp(prefix="training_task_"))
+        self._apply_img_size()
 
         # Setup logging
         self._setup_logging(output_dir, temp_dir.name)
         self.environment.gpus = gpus
 
-        # Create training configurations
-        configs = self._create_training_configs()
-
         training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
+        training_task = self.set_dataset(
+            training_task=training_task,
+            dataset_root_path=training_task.dataset.path,
+            dataset_name=training_task.dataset.name,
+        )
+        training_task.status = TaskStatus.IN_PROGRESS
+        training_task = training_task_repository.update(db=db, model=training_task)
+
+        configs = self._create_training_configs()
 
         try:
             self._execute_training(gpus, configs)

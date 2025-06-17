@@ -27,6 +27,24 @@ class BenchmarkResult:
     memory_footprint_cpu: float = 0
     memory_footprint_gpu: float = 0
 
+    def __init__(
+        self,
+        processor: str = "",
+        ram_size: float = 0,
+        file_size: float = 0,
+        latency: float = 0,
+        power_consumption: float = 0,
+        memory_footprint_cpu: float = 0,
+        memory_footprint_gpu: float = 0,
+    ):
+        self.processor = processor
+        self.ram_size = ram_size if ram_size is not None else 0
+        self.file_size = file_size if file_size is not None else 0
+        self.latency = latency if latency is not None else 0
+        self.power_consumption = power_consumption if power_consumption is not None else 0
+        self.memory_footprint_cpu = memory_footprint_cpu if memory_footprint_cpu is not None else 0
+        self.memory_footprint_gpu = memory_footprint_gpu if memory_footprint_gpu is not None else 0
+
     def to(self, file_size: float) -> benchmarker.BenchmarkResult:
         benchmark_result = benchmarker.BenchmarkResult()
         benchmark_result.memory_footprint_cpu = self.memory_footprint_cpu

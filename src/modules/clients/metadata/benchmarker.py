@@ -23,13 +23,13 @@ class BenchmarkTaskInfo:
 
 @dataclass
 class BenchmarkResult:
-    memory_footprint: int = None
-    memory_footprint_gpu: int = None
-    memory_footprint_cpu: int = None
-    power_consumption: int = None
-    ram_size: int = None
-    latency: int = None
-    file_size: int = None
+    memory_footprint: int = 0
+    memory_footprint_gpu: int = 0
+    memory_footprint_cpu: int = 0
+    power_consumption: int = 0
+    ram_size: int = 0
+    latency: int = 0
+    file_size: int = 0
 
 
 @dataclass

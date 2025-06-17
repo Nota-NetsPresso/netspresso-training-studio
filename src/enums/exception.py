@@ -8,3 +8,4 @@ class Origin(str, Enum):
     REPOSITORY = "repository"
     CLIENT = "client"
     LIBRARY = "library"
+    MODULE = "module"

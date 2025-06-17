@@ -36,9 +36,18 @@ def create_conversions_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> ConversionCreateResponse:
-    conversion_task = conversion_task_service.create_conversion_task(db=db, conversion_in=request_body, api_key=api_key)
+    existing_task = conversion_task_service.check_conversion_task_exists(db=db, conversion_in=request_body)
+    if existing_task:
+        return ConversionCreateResponse(data=existing_task)
 
-    return ConversionCreateResponse(data=conversion_task)
+    conversion_task = conversion_task_service.create_conversion_task(db=db, conversion_in=request_body, api_key=api_key)
+    conversion_task_payload = conversion_task_service.start_conversion_task(
+        conversion_in=request_body,
+        conversion_task=conversion_task,
+        api_key=api_key,
+    )
+
+    return ConversionCreateResponse(data=conversion_task_payload)
 
 
 @router.get("/conversions/{task_id}", response_model=ConversionResponse)

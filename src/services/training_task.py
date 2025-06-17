@@ -213,88 +213,96 @@ class TrainingTaskService:
         Returns:
             TrainingCreatePayload with the task ID
         """
-        user_info = user_service.get_user_info(token=token)
+        try:
+            user_info = user_service.get_user_info(token=token)
 
-        # Create trained model object
-        model_obj = self.create_trained_model(
-            db=db,
-            model_name=training_in.name,
-            user_id=user_info.user_id,
-            project_id=training_in.project_id,
-        )
-
-        # Create augmentations configuration
-        augs = [
-            Augmentation(
-                name=aug.name,
-                parameters=aug.to_parameters(),
-                phase=phase,
+            # Create trained model object
+            model_obj = self.create_trained_model(
+                db=db,
+                model_name=training_in.name,
+                user_id=user_info.user_id,
+                project_id=training_in.project_id,
             )
-            for phase, aug_list in [("train", DEFAULT_AUGMENTATIONS), ("inference", DEFAULT_AUGMENTATIONS)]
-            for aug in aug_list
-        ]
 
-        # Configure optimizer and scheduler
-        optimizer = OptimizerManager.get_optimizer(
-            name=training_in.hyperparameter.optimizer,
-            lr=training_in.hyperparameter.learning_rate,
-        )
-        scheduler = SchedulerManager.get_scheduler(
-            name=training_in.hyperparameter.scheduler
-        )
+            # Create augmentations configuration
+            augs = [
+                Augmentation(
+                    name=aug.name,
+                    parameters=aug.to_parameters(),
+                    phase=phase,
+                )
+                for phase, aug_list in [("train", DEFAULT_AUGMENTATIONS), ("inference", DEFAULT_AUGMENTATIONS)]
+                for aug in aug_list
+            ]
 
-        # Create hyperparameter configuration
-        hyperparameter = Hyperparameter(
-            epochs=training_in.hyperparameter.epochs,
-            batch_size=training_in.hyperparameter.batch_size or 8,
-            optimizer=optimizer.asdict(),
-            scheduler=scheduler.asdict(),
-            augmentations=augs,
-        )
+            # Configure optimizer and scheduler
+            optimizer = OptimizerManager.get_optimizer(
+                name=training_in.hyperparameter.optimizer,
+                lr=training_in.hyperparameter.learning_rate,
+            )
+            scheduler = SchedulerManager.get_scheduler(
+                name=training_in.hyperparameter.scheduler
+            )
 
-        # Create environment configuration with defaults
-        environment = Environment(
-            seed=training_in.environment.seed,
-            num_workers=training_in.environment.num_workers,
-            gpus=training_in.environment.gpus
-        )
+            # Create hyperparameter configuration
+            hyperparameter = Hyperparameter(
+                epochs=training_in.hyperparameter.epochs,
+                batch_size=training_in.hyperparameter.batch_size or 8,
+                optimizer=optimizer.asdict(),
+                scheduler=scheduler.asdict(),
+                augmentations=augs,
+            )
 
-        # Get image size from input shapes
-        img_size = training_in.input_shapes[0].dimension[0]
+            # Create environment configuration with defaults
+            environment = Environment(
+                seed=training_in.environment.seed,
+                num_workers=training_in.environment.num_workers,
+                gpus=training_in.environment.gpus
+            )
 
-        train_dataset = self._create_training_dataset(training_in=training_in)
+            # Get image size from input shapes
+            img_size = training_in.input_shapes[0].dimension[0]
 
-        # Determine training type
-        training_type = TrainingType.RETRAINING if training_in.input_model_id else TrainingType.TRAINING
-        if training_in.pretrained_model:
-            logger.info(f"Training with pretrained model: {training_in.pretrained_model}")
-            pretrained_model = training_in.pretrained_model
-        else:
-            logger.info(f"Training with input model: {training_in.input_model_id}")
-            compression_task = compression_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
-            training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
-            pretrained_model = training_task.pretrained_model
+            train_dataset = self._create_training_dataset(training_in=training_in)
 
-        # Create training task
-        training_task_id = generate_uuid(entity="task")
-        training_task = TrainingTask(
-            task_id=training_task_id,
-            pretrained_model=pretrained_model,
-            task=training_in.task,
-            framework="pytorch",
-            input_shapes=[InputShape(batch=1, channel=3, dimension=[img_size, img_size]).__dict__],
-            status=TaskStatus.IN_PROGRESS,
-            hyperparameter=hyperparameter,
-            environment=environment,
-            model_id=model_obj.model_id,
-            user_id=model_obj.user_id,
-            training_type=training_type,
-            input_model_id=training_in.input_model_id,
-            dataset=train_dataset,
-        )
-        training_task = training_task_repository.save(db=db, model=training_task)
+            # Determine training type
+            training_type = TrainingType.RETRAINING if training_in.input_model_id else TrainingType.TRAINING
+            if training_in.pretrained_model:
+                logger.info(f"Training with pretrained model: {training_in.pretrained_model}")
+                pretrained_model = training_in.pretrained_model
+            else:
+                logger.info(f"Training with input model: {training_in.input_model_id}")
+                input_model = model_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                if input_model.type == ModelType.TRAINED_MODEL:
+                    training_task = training_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                else:
+                    compression_task = compression_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                    training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
+                pretrained_model = training_task.pretrained_model
 
-        return training_task
+            # Create training task
+            training_task_id = generate_uuid(entity="task")
+            training_task = TrainingTask(
+                task_id=training_task_id,
+                pretrained_model=pretrained_model,
+                task=training_in.task,
+                framework="pytorch",
+                input_shapes=[InputShape(batch=1, channel=3, dimension=[img_size, img_size]).__dict__],
+                status=TaskStatus.NOT_STARTED,
+                hyperparameter=hyperparameter,
+                environment=environment,
+                model_id=model_obj.model_id,
+                user_id=model_obj.user_id,
+                training_type=training_type,
+                input_model_id=training_in.input_model_id,
+                dataset=train_dataset,
+            )
+            training_task = training_task_repository.save(db=db, model=training_task)
+
+            return training_task
+        except Exception as e:
+            logger.error(f"Error creating training task: {e}")
+            raise e
 
     def start_training_task(self, db: Session, training_in: TrainingCreate, training_task: TrainingTask, token: str) -> TrainingCreatePayload:
         # Get input model info if retraining

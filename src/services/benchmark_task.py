@@ -22,7 +22,7 @@ from src.api.v1.schemas.tasks.common.device import (
 from src.enums.model import Framework, ModelType
 from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
-from src.models.benchmark import BenchmarkTask
+from src.models.benchmark import BenchmarkResult, BenchmarkTask
 from src.modules.benchmarker.v2.benchmarker import BenchmarkerV2
 from src.modules.clients.enums.task import TaskStatusForDisplay
 from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
@@ -120,8 +120,9 @@ class BenchmarkTaskService:
 
         return unique_devices
 
-    def create_benchmark_task(self, db: Session, benchmark_in: BenchmarkCreate, api_key: str) -> BenchmarkCreatePayload:
-        """Create new benchmark task"""
+    def check_benchmark_task_exists(self, db: Session, benchmark_in: BenchmarkCreate) -> Optional[BenchmarkCreatePayload]:
+        logger.info(f"Checking if benchmark task exists for {benchmark_in.input_model_id}")
+
         # Check if a task with the same options already exists
         existing_tasks = benchmark_task_repository.get_all_by_model_id(
             db=db,
@@ -153,26 +154,57 @@ class BenchmarkTaskService:
                 logger.info(f"Previous benchmark task ended with status {task.status}, creating new task")
                 break
 
-        model = model_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+        logger.info(f"No existing benchmark task found for {benchmark_in.input_model_id}")
+        return None
 
-        input_model_path = Path(model.object_path)
-        logger.info(f"Input model path: {input_model_path}")
-        logger.info(f"Benchmark Info: {benchmark_in.model_dump()}")
+    def create_benchmark_task(self, db: Session, benchmark_in: BenchmarkCreate, api_key: str) -> BenchmarkTask:
+        try:
+            logger.info(f"Creating benchmark task for {benchmark_in.input_model_id}")
 
-        benchmark_task_id = generate_uuid(entity="task")
+            input_model = model_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+            logger.info(f"Input model: {input_model}")
+
+            conversion_task = conversion_task_repository.get_by_model_id(db=db, model_id=benchmark_in.input_model_id)
+            logger.info(f"Conversion task: {conversion_task}")
+
+            benchmark_task = BenchmarkTask(
+                framework=conversion_task.framework,
+                device_name=benchmark_in.device_name,
+                software_version=benchmark_in.software_version,
+                precision=conversion_task.precision,
+                status=TaskStatus.NOT_STARTED,
+                input_model_id=benchmark_in.input_model_id,
+                user_id=input_model.user_id,
+            )
+            benchmark_task.result = BenchmarkResult(task_id=benchmark_task.task_id)
+            benchmark_task = benchmark_task_repository.save(db=db, model=benchmark_task)
+
+            return benchmark_task
+        except Exception as e:
+            logger.error(f"Error creating benchmark task: {e}")
+            raise e
+
+    def start_benchmark_task(
+        self,
+        benchmark_in: BenchmarkCreate,
+        benchmark_task: BenchmarkTask,
+        api_key: str,
+    ) -> BenchmarkCreatePayload:
+        worker_params = {
+            "api_key": api_key,
+            "input_model_id": benchmark_in.input_model_id,
+            "benchmark_task_id": benchmark_task.task_id,
+            "target_device_name": benchmark_in.device_name,
+            "target_software_version": benchmark_in.software_version,
+            "target_hardware_type": benchmark_in.hardware_type,
+        }
+
         _ = benchmark_model.apply_async(
-            kwargs={
-                "api_key": api_key,
-                "input_model_path": input_model_path.as_posix(),
-                "target_device_name": benchmark_in.device_name,
-                "target_software_version": benchmark_in.software_version,
-                "target_hardware_type": benchmark_in.hardware_type,
-                "input_model_id": benchmark_in.input_model_id,
-            },
-            benchmark_task_id=benchmark_task_id,
+            kwargs=worker_params,
+            benchmark_task_id=benchmark_task.task_id,
         )
 
-        return BenchmarkCreatePayload(task_id=benchmark_task_id)
+        return BenchmarkCreatePayload(task_id=benchmark_task.task_id)
 
     def get_benchmark_task(self, db: Session, task_id: str, api_key: str) -> BenchmarkResponse:
         """Get benchmark task status and details"""

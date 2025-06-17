@@ -7,6 +7,7 @@ from src.api.api import api_router
 from src.configs.settings import settings
 from src.configs.version import BACKEND_VERSION
 from src.core.db.session import init_db
+from src.core.middlewares.context_middleware import ContextMiddleware
 
 
 def init_routers(app: FastAPI) -> None:
@@ -38,6 +39,7 @@ def create_app():
         middleware=make_middleware(),
     )
     init_routers(app=app)
+    app.add_middleware(ContextMiddleware)
 
     return app
 
