@@ -38,7 +38,6 @@ class TrainingCreate(BaseModel):
     pretrained_model: Optional[str] = None
     input_model_id: Optional[str] = None
     task: Task = Field(default=Task.OBJECT_DETECTION, description="Task")
-    training_type: TrainingType = Field(default=TrainingType.TRAINING, description="Training type")
     input_shapes: List[InputShape] = Field(default_factory=list, description="List of input shapes")
     dataset: Optional[DatasetCreate]
     hyperparameter: Optional[HyperparameterCreate]
@@ -94,6 +93,7 @@ class TrainingPayload(BaseModel):
     pretrained_model: PretrainedModelPayload
     task: TaskPayload
     framework: FrameworkPayload
+    training_type: TrainingType
     input_shapes: List[Dict]
     status: str
     error_detail: Optional[Dict] = None
