@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header
@@ -24,13 +25,18 @@ def get_supported_benchmark_devices(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> SupportedDevicesForBenchmarkResponse:
-    supported_devices = benchmark_task_service.get_supported_devices(
-        db=db,
-        model_id=model_id,
-        api_key=api_key,
-    )
+    try:
+        supported_devices = benchmark_task_service.get_supported_devices(
+            db=db,
+            model_id=model_id,
+            api_key=api_key,
+        )
 
-    return SupportedDevicesForBenchmarkResponse(data=supported_devices, total_count=len(supported_devices))
+        return SupportedDevicesForBenchmarkResponse(data=supported_devices, total_count=len(supported_devices))
+
+    except Exception as e:
+        logger.error(f"Error getting supported benchmark devices: {e}")
+        raise e
 
 
 @router.post("/benchmarks", response_model=BenchmarkCreateResponse, status_code=201)
@@ -39,19 +45,24 @@ def create_benchmark_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> BenchmarkCreateResponse:
-    existing_task = benchmark_task_service.check_benchmark_task_exists(db=db, benchmark_in=request_body)
-    if existing_task:
-        return BenchmarkCreateResponse(data=existing_task)
+    try:
+        existing_task = benchmark_task_service.check_benchmark_task_exists(db=db, benchmark_in=request_body)
+        if existing_task:
+            return BenchmarkCreateResponse(data=existing_task)
 
-    benchmark_task = benchmark_task_service.create_benchmark_task(
-        db=db, benchmark_in=request_body, api_key=api_key
-    )
+        benchmark_task = benchmark_task_service.create_benchmark_task(
+            db=db, benchmark_in=request_body, api_key=api_key
+        )
 
-    benchmark_task_payload = benchmark_task_service.start_benchmark_task(
-        benchmark_in=request_body, benchmark_task=benchmark_task, api_key=api_key
-    )
+        benchmark_task_payload = benchmark_task_service.start_benchmark_task(
+            benchmark_in=request_body, benchmark_task=benchmark_task, api_key=api_key
+        )
 
-    return BenchmarkCreateResponse(data=benchmark_task_payload)
+        return BenchmarkCreateResponse(data=benchmark_task_payload)
+
+    except Exception as e:
+        logger.error(f"Error starting benchmark task: {e}")
+        raise e
 
 
 @router.get("/benchmarks/{task_id}", response_model=BenchmarkResponse)

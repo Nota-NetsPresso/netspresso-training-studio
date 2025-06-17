@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header
@@ -19,19 +20,24 @@ def create_compressions_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> CompressionCreateResponse:
-    existing_task = compression_task_service.check_compression_task_exists(db=db, compression_in=request_body)
-    if existing_task:
-        return CompressionCreateResponse(data=existing_task)
+    try:
+        existing_task = compression_task_service.check_compression_task_exists(db=db, compression_in=request_body)
+        if existing_task:
+            return CompressionCreateResponse(data=existing_task)
 
-    compression_task = compression_task_service.create_compression_task(
-        db=db, compression_in=request_body, api_key=api_key
-    )
+        compression_task = compression_task_service.create_compression_task(
+            db=db, compression_in=request_body, api_key=api_key
+        )
 
-    compression_task_payload = compression_task_service.start_compression_task(
-        compression_in=request_body, compression_task=compression_task, api_key=api_key
-    )
+        compression_task_payload = compression_task_service.start_compression_task(
+            compression_in=request_body, compression_task=compression_task, api_key=api_key
+        )
 
-    return CompressionCreateResponse(data=compression_task_payload)
+        return CompressionCreateResponse(data=compression_task_payload)
+
+    except Exception as e:
+        logger.error(f"Error starting compression task: {e}")
+        raise e
 
 
 @router.get("/compressions/{task_id}", response_model=CompressionResponse)
