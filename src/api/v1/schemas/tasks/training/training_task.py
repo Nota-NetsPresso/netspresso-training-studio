@@ -17,6 +17,7 @@ from src.enums.training import (
     PretrainedModelGroup,
     Task,
     TaskDisplay,
+    TrainingType,
 )
 
 from ..common.dataset import DatasetCreate, TrainingDatasetPayload
@@ -92,6 +93,7 @@ class TrainingPayload(BaseModel):
     pretrained_model: PretrainedModelPayload
     task: TaskPayload
     framework: FrameworkPayload
+    training_type: TrainingType
     input_shapes: List[Dict]
     status: str
     error_detail: Optional[Dict] = None
