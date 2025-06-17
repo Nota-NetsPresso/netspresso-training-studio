@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_token
@@ -55,19 +56,24 @@ def start_training_task(
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> TrainingCreateResponse:
-    training_task = training_task_service.create_training_task(
-        db=db,
-        training_in=request_body,
-        token=token.access_token,
-    )
-    training_task_payload = training_task_service.start_training_task(
-        db=db,
-        training_in=request_body,
-        training_task=training_task,
-        token=token.access_token,
-    )
+    try:
+        training_task = training_task_service.create_training_task(
+            db=db,
+            training_in=request_body,
+            token=token.access_token,
+        )
+        training_task_payload = training_task_service.start_training_task(
+            db=db,
+            training_in=request_body,
+            training_task=training_task,
+            token=token.access_token,
+        )
 
-    return TrainingCreateResponse(data=training_task_payload)
+        return TrainingCreateResponse(data=training_task_payload)
+
+    except Exception as e:
+        logger.error(f"Error starting training task: {e}")
+        raise e
 
 
 @router.get("/trainings/{task_id}", response_model=TrainingResponse)

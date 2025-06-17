@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Path, Query
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header, get_token
@@ -46,12 +47,17 @@ def create_evaluations_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> EvaluationCreateResponse:
-    evaluation_task_id = evaluation_task_service.create_evaluation_task(
-        db=db, evaluation_in=request_body, api_key=api_key
-    )
+    try:
+        evaluation_task_id = evaluation_task_service.create_evaluation_task(
+            db=db, evaluation_in=request_body, api_key=api_key
+        )
 
-    response_data = EvaluationCreatePayload(task_id=evaluation_task_id)
-    return EvaluationCreateResponse(data=response_data)
+        response_data = EvaluationCreatePayload(task_id=evaluation_task_id)
+        return EvaluationCreateResponse(data=response_data)
+
+    except Exception as e:
+        logger.error(f"Error starting evaluation task: {e}")
+        raise e
 
 
 # TODO: Will be removed after the evaluation task is migrated to the new task system
