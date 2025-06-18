@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from loguru import logger
 
+from src.api.v1.schemas.tasks.conversion.conversion_task import ConversionCreate
 from src.api.v1.schemas.tasks.training.training_task import TrainingCreate
 from src.configs.settings import settings
 from src.core.db.session import get_db_session
@@ -19,6 +20,7 @@ from src.modules.trainer.trainer import Trainer
 from src.repositories.model import model_repository
 from src.repositories.project import project_repository
 from src.repositories.training import training_task_repository
+from src.services.conversion_task import conversion_task_service
 from src.worker.celery_app import celery_app
 from src.zenko.storage_handler import ObjectStorageHandler
 
@@ -286,7 +288,7 @@ def trigger_conversion_evaluation(
         _ = run_multiple_evaluations.apply_async(
             kwargs={
                 "api_key": api_key,
-                "model_id": model_id,  # Use the already trained ONNX model ID
+                "input_model_id": model_id,  # Use the already trained ONNX model ID
                 "dataset_id": training_in.dataset.test_path,
                 "training_task_id": training_task_id,
                 "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
@@ -297,15 +299,11 @@ def trigger_conversion_evaluation(
         _ = chain_conversion_and_evaluation.apply_async(
             kwargs={
                 "api_key": api_key,
-                "input_model_path": input_model_path.as_posix(),
-                "output_dir": output_dir.as_posix(),
+                "input_model_id": model_id,
                 "target_framework": conversion_option.framework,
                 "target_device_name": conversion_option.device_name,
                 "target_data_type": conversion_option.precision,
                 "target_software_version": conversion_option.software_version,
-                "input_layer": None,
-                "dataset_path": None,
-                "input_model_id": model_id,
                 "dataset_id": training_in.dataset.test_path,
                 "training_task_id": training_task_id,
                 "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
@@ -356,34 +354,75 @@ def train_model(
             logger.warning(f"Training task {training_task_id} did not complete successfully. Status: {training_task.status}")
             return {"task_id": training_task_id, "status": training_task.status}
 
-        result = {"task_id": training_task_id, "status": "completed"}
-
         # Process conversion and evaluation if training was successful
         if training_in.dataset.test_path and training_in.conversion:
             try:
                 logger.info("Starting post-training chain for conversion and evaluation")
+                from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
 
                 # Prepare evaluation data
                 prepare_evaluation_data(trainer, training_in, dataset_path)
 
                 # Get model paths
-                paths = get_model_paths(training_task_id)
-                if not paths:
-                    return result
-                input_model_path, output_dir = paths
-                model_id = training_task.model_id
+                input_model_path, output_dir = get_model_paths(training_task_id)
 
-                # Trigger conversion and evaluation
-                trigger_conversion_evaluation(
-                    api_key=api_key,
-                    input_model_path=input_model_path,
-                    output_dir=output_dir,
-                    model_id=model_id,
-                    training_in=training_in,
-                    training_task_id=training_task_id
-                )
+                # For ONNX models, skip conversion and run evaluation directly
+                if training_in.conversion.framework == EvaluationTargetFramework.ONNX:
+                    logger.info("ONNX model detected - skipping conversion and running evaluation directly")
+
+                    # Evaluate ONNX model directly
+                    _ = run_multiple_evaluations.apply_async(
+                        kwargs={
+                            "api_key": api_key,
+                            "model_id": training_task.model_id,  # Use the already trained ONNX model ID
+                            "dataset_id": training_in.dataset.test_path,
+                            "training_task_id": training_task_id,
+                            "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
+                        }
+                    )
+                else:
+                    logger.info("TFLite model detected - starting conversion and evaluation chain")
+
+                    conversion_in = ConversionCreate(
+                        input_model_id=training_task.model_id,
+                        framework=training_in.conversion.framework,
+                        device_name=training_in.conversion.device_name,
+                        precision=training_in.conversion.precision,
+                        software_version=training_in.conversion.software_version,
+                    )
+                    conversion_task = conversion_task_service.create_conversion_task(
+                        db=db,
+                        conversion_in=conversion_in,
+                        api_key=api_key,
+                    )
+                    conversion_task_payload = conversion_task_service.start_conversion_task(
+                        conversion_in=conversion_in,
+                        conversion_task=conversion_task,
+                        api_key=api_key,
+                    )
+
+                    _ = chain_conversion_and_evaluation.apply_async(
+                        kwargs={
+                            "api_key": api_key,
+                            "input_model_id": training_task.model_id,
+                            "conversion_task_id": conversion_task_payload.task_id,
+                            "target_framework": training_in.conversion.framework,
+                            "target_device_name": training_in.conversion.device_name,
+                            "target_data_type": training_in.conversion.precision,
+                            "target_software_version": training_in.conversion.software_version,
+                            "dataset_id": training_in.dataset.test_path,
+                            "training_task_id": training_task_id,
+                            "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
+                        }
+                    )
 
             except Exception as chain_error:
                 logger.error(f"Error in conversion-evaluation chain: {str(chain_error)}")
+
+        result = {
+            "task_id": training_task_id,
+            "status": "completed",
+            "conversion_task_id": conversion_task_payload.task_id if conversion_task_payload else None,
+        }
 
         return result
