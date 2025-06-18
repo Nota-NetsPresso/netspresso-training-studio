@@ -374,7 +374,7 @@ def train_model(
                     _ = run_multiple_evaluations.apply_async(
                         kwargs={
                             "api_key": api_key,
-                            "model_id": training_task.model_id,  # Use the already trained ONNX model ID
+                            "input_model_id": training_task.model_id,  # Use the already trained ONNX model ID
                             "dataset_id": training_in.dataset.test_path,
                             "training_task_id": training_task_id,
                             "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
