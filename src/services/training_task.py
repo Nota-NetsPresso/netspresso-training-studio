@@ -215,7 +215,7 @@ class TrainingTaskService:
             TrainingCreatePayload with the task ID
         """
         token = get_token(api_key=api_key)
-        user_info = user_service.get_user_info(token=token)
+        user_info = user_service.get_user_info(token=token.access_token)
 
         # Create trained model object
         model_obj = self.create_trained_model(
