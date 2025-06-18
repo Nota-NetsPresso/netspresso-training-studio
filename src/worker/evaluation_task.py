@@ -297,10 +297,10 @@ def poll_and_start_evaluation(
                 logger.info(f"Conversion in progress. Status: {conversion_task.status}. Scheduling poll again.")
                 return poll_and_start_evaluation.apply_async(
                     args=[
-                        conversion_task_id,
                         api_key,
-                        dataset_id,
+                        conversion_task_id,
                         training_task_id,
+                        dataset_id,
                         confidence_scores,
                         gpus,
                         evaluation_task_id
@@ -375,6 +375,7 @@ def chain_conversion_and_evaluation(
             "dataset_id": dataset_id,
             "confidence_scores": confidence_scores,
             "gpus": gpus,
+            "evaluation_task_id": evaluation_task_id,
         }
     )
 
