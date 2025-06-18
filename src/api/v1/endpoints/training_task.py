@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.deps import get_token
+from src.api.deps import api_key_header, get_token
 from src.api.v1.schemas.tasks.common.dataset import LocalTrainingDatasetsResponse
 from src.api.v1.schemas.tasks.training.hyperparameter import (
     SupportedModelResponse,
@@ -54,19 +54,19 @@ def get_supported_schedulers() -> SupportedSchedulersResponse:
 def start_training_task(
     request_body: TrainingCreate,
     db: Session = Depends(get_db),
-    token: Token = Depends(get_token),
+    api_key: str = Depends(api_key_header),
 ) -> TrainingCreateResponse:
     try:
         training_task = training_task_service.create_training_task(
             db=db,
             training_in=request_body,
-            token=token.access_token,
+            api_key=api_key,
         )
         training_task_payload = training_task_service.start_training_task(
             db=db,
             training_in=request_body,
             training_task=training_task,
-            token=token.access_token,
+            api_key=api_key,
         )
 
         return TrainingCreateResponse(data=training_task_payload)

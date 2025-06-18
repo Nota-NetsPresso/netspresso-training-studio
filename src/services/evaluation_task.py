@@ -197,7 +197,7 @@ class EvaluationTaskService:
             task_result = run_multiple_evaluations.apply_async(
                 kwargs={
                     "api_key": api_key,
-                    "model_id": model.model_id,
+                    "input_model_id": model.model_id,
                     "dataset_id": evaluation_in.dataset_path,
                     "training_task_id": evaluation_in.training_task_id,
                     "confidence_scores": confidence_scores,
@@ -235,7 +235,7 @@ class EvaluationTaskService:
             task_result = run_multiple_evaluations.apply_async(
                 kwargs={
                     "api_key": api_key,
-                    "model_id": conversion_task.model_id,
+                    "input_model_id": conversion_task.model_id,
                     "dataset_id": evaluation_in.dataset_path,
                     "training_task_id": evaluation_in.training_task_id,
                     "confidence_scores": confidence_scores,

@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from src.api.deps import get_token
 from src.api.v1.schemas.tasks.common.dataset import LocalTrainingDatasetPayload
 from src.api.v1.schemas.tasks.training.hyperparameter import (
     OptimizerPayload,
@@ -202,7 +203,7 @@ class TrainingTaskService:
 
         return model_obj
 
-    def create_training_task(self, db: Session, training_in: TrainingCreate, token: str) -> TrainingTask:
+    def create_training_task(self, db: Session, training_in: TrainingCreate, api_key: str) -> TrainingTask:
         """Create a new training task.
 
         Args:
@@ -213,7 +214,8 @@ class TrainingTaskService:
         Returns:
             TrainingCreatePayload with the task ID
         """
-        user_info = user_service.get_user_info(token=token)
+        token = get_token(api_key=api_key)
+        user_info = user_service.get_user_info(token=token.access_token)
 
         # Create trained model object
         model_obj = self.create_trained_model(
@@ -301,7 +303,7 @@ class TrainingTaskService:
 
         return training_task
 
-    def start_training_task(self, db: Session, training_in: TrainingCreate, training_task: TrainingTask, token: str) -> TrainingCreatePayload:
+    def start_training_task(self, db: Session, training_in: TrainingCreate, training_task: TrainingTask, api_key: str) -> TrainingCreatePayload:
         # Get input model info if retraining
         input_model_info = None
         if training_in.input_model_id:
@@ -310,7 +312,7 @@ class TrainingTaskService:
         # Prepare worker task parameters
         worker_params = {
             "training_task_id": training_task.task_id,
-            "api_key": token,
+            "api_key": api_key,
             "training_in": training_in.model_dump(),
             "unique_model_name": training_task.model.name,
             "training_type": training_task.training_type,
