@@ -537,26 +537,6 @@ class Trainer:
 
         return best_fx_paths, best_onnx_paths
 
-    def update_task_status(self, task_id: str, status: TaskStatus, error_message: Optional[str] = None) -> None:
-        """
-        Update the task status.
-
-        Args:
-            task_id: The ID of the task to update.
-            status: The new status (Status enum value).
-            error_message: The error message (optional).
-        """
-        logger.info(f"Updating task status: {task_id} -> {status}")
-        if error_message:
-            logger.error(f"Error message: {error_message}")
-
-        with get_db_session() as session:
-            training_task_repository.update_status(
-                db=session,
-                task_id=task_id,
-                status=status,
-                error_message=error_message,
-            )
 
     def create_performance(self, training_task: TrainingTask, training_summary: Dict[str, Any]) -> TrainingTask:
         performance = Performance(
@@ -607,10 +587,14 @@ class Trainer:
         try:
             self._execute_training(gpus, configs)
         except Exception as e:
-            self._handle_training_error(training_task, e)
+            logger.error(f"Training error: {e}")
+            training_task.status = TaskStatus.ERROR
+            training_task.error_detail = FailedTrainingException(error_log=str(e)).detail
+            training_task = training_task_repository.update(db=db, model=training_task)
         except KeyboardInterrupt:
+            logger.error("Training stopped by user")
             training_task.status = TaskStatus.STOPPED
-            training_task.error_detail = FailedTrainingException(error_log="Training stopped by user").args[0]
+            training_task.error_detail = FailedTrainingException(error_log="Training stopped by user").detail
         finally:
             # Cleanup and move files
             self._cleanup_and_move_files(configs, temp_dir)
@@ -621,7 +605,7 @@ class Trainer:
             # Upload model files if completed
             if training_task.status == TaskStatus.COMPLETED:
                 calibration_dataset = self.prepare_calibration_dataset(dataset_path=self.data.path.train.image, num_dataset=100)
-                self._upload_model_files(training_task, temp_dir, calibration_dataset)
+                training_task = self._upload_model_files(db=db, training_task=training_task, destination_folder=temp_dir, calibration_dataset=calibration_dataset)
 
         return training_task
 
@@ -656,12 +640,6 @@ class Trainer:
             environment=configs.environment,
         )
 
-    def _handle_training_error(self, training_task: TrainingTask, error):
-        """Handle training errors."""
-        e = FailedTrainingException(error_log=error.args[0])
-        training_task.status = TaskStatus.ERROR
-        training_task.error_detail = e.args[0]
-
     def _cleanup_and_move_files(self, configs: TrainerConfigs, destination_folder: Path):
         """Clean up temporary files and move result files."""
         FileHandler.remove_folder(configs.temp_folder)
@@ -679,7 +657,7 @@ class Trainer:
             error_msg = f"Training summary file not found at {summary_path}"
             training_summary = self._create_default_error_summary(error_msg)
             training_task.status = TaskStatus.ERROR
-            training_task.error_detail = FailedTrainingException(error_log=error_msg).args[0]
+            training_task.error_detail = FailedTrainingException(error_log=error_msg).detail
         else:
             try:
                 training_summary = FileHandler.load_json(file_path=summary_path)
@@ -688,7 +666,7 @@ class Trainer:
                 error_msg = f"Failed to load training summary: {str(e)}"
                 training_summary = self._create_default_error_summary(error_msg)
                 training_task.status = TaskStatus.ERROR
-                training_task.error_detail = FailedTrainingException(error_log=error_msg).args[0]
+                training_task.error_detail = FailedTrainingException(error_log=error_msg).detail
                 return training_task
 
         try:
@@ -696,13 +674,13 @@ class Trainer:
         except Exception as e:
             logger.error(f"Error creating performance record: {e}, {training_summary}")
             training_task.status = TaskStatus.ERROR
-            training_task.error_detail = FailedTrainingException(error_log=f"Failed to create performance record: {str(e)}").args[0]
+            training_task.error_detail = FailedTrainingException(error_log=f"Failed to create performance record: {str(e)}").detail
             return training_task
 
         training_task.status = self._get_status_by_training_summary(training_summary.get("status"))
         if training_task.status == TaskStatus.ERROR:
             error_stats = training_summary.get("error_stats", "")
-            training_task.error_detail = FailedTrainingException(error_log=error_stats).args[0]
+            training_task.error_detail = FailedTrainingException(error_log=error_stats).detail
 
         training_task = training_task_repository.update(db=db, model=training_task)
 
@@ -720,7 +698,7 @@ class Trainer:
             "error_stats": error_msg
         }
 
-    def _upload_model_files(self, training_task: TrainingTask, destination_folder: Path, calibration_dataset: str):
+    def _upload_model_files(self, db: Session, training_task: TrainingTask, destination_folder: Path, calibration_dataset: str) -> TrainingTask:
         """Upload trained model files to storage."""
         try:
             pt_file, onnx_file = self.find_model_files(destination_folder)
@@ -734,8 +712,10 @@ class Trainer:
             if errors:
                 error_msg = f"Required model files missing after training: {', '.join(errors)}"
                 logger.error(error_msg)
-                self.update_task_status(task_id=training_task.task_id, status=TaskStatus.ERROR, error_message=FailedTrainingException(error_log=error_msg))
-                return
+                training_task.status = TaskStatus.ERROR
+                training_task.error_detail = FailedTrainingException(error_log=error_msg).detail
+                training_task = training_task_repository.update(db=db, model=training_task)
+                return training_task
 
             model: Model = training_task.model
             self._upload_file_with_retry(
@@ -760,7 +740,10 @@ class Trainer:
         except Exception as e:
             error_msg = f"Failed to upload model files to Zenko: {e}"
             logger.error(error_msg)
-            self.update_task_status(task_id=training_task.task_id, status=TaskStatus.ERROR, error_message=FailedTrainingException(error_log=error_msg))
+            training_task.status = TaskStatus.ERROR
+            training_task.error_detail = FailedTrainingException(error_log=error_msg).detail
+            training_task = training_task_repository.update(db=db, model=training_task)
+            return training_task
 
     def _upload_file_with_retry(self, local_path, object_path, file_type, max_retries=3, retry_delay=5):
         """Execute file upload with retry mechanism."""
