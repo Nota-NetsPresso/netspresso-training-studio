@@ -422,7 +422,6 @@ def train_model(
         result = {
             "task_id": training_task_id,
             "status": "completed",
-            "conversion_task_id": conversion_task_payload.task_id if conversion_task_payload else None,
         }
 
         return result
