@@ -39,7 +39,6 @@ from src.modules.converter.v2.converter import ConverterV2
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_dataset_repository, evaluation_task_repository
 from src.repositories.model import model_repository
-from src.services.project import project_service
 from src.services.user import user_service
 from src.utils.file import FileHandler
 from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
@@ -260,27 +259,14 @@ class EvaluationTaskService:
             if not model:
                 raise Exception(f"Input model with ID {evaluation_in.input_model_id} not found")
 
-            # Create input model and output directory paths
-            input_model_dir = Path(model.object_path)
-
-            input_model_path = input_model_dir / "model.onnx"
-            output_dir = input_model_dir / "converted"
-
-            logger.info(f"Input model path: {input_model_path}")
-            logger.info(f"Output directory: {output_dir}")
-
             task_result = chain_conversion_and_evaluation.apply_async(
                 kwargs={
                     "api_key": api_key,
-                    "input_model_path": input_model_path.as_posix(),
-                    "output_dir": output_dir.as_posix(),
-                    "target_framework": evaluation_in.conversion.framework,
-                    "target_device_name": evaluation_in.conversion.device_name,
-                    "target_data_type": evaluation_in.conversion.precision,
-                    "target_software_version": evaluation_in.conversion.software_version,
-                    "input_layer": None,
-                    "dataset_path": None,
-                    "input_model_id": evaluation_in.input_model_id,
+                    "input_model_id": evaluation_in,
+                    "target_framework": evaluation_in.framework,
+                    "target_device_name": evaluation_in.device_name,
+                    "target_data_type": evaluation_in.precision,
+                    "target_software_version": evaluation_in.software_version,
                     "dataset_id": evaluation_in.dataset_path,
                     "training_task_id": evaluation_in.training_task_id,
                     "confidence_scores": confidence_scores,
