@@ -607,8 +607,11 @@ class Trainer:
         try:
             self._execute_training(gpus, configs)
         except Exception as e:
-            self._handle_training_error(training_task, e)
+            logger.error(f"Training error: {e}")
+            training_task.status = TaskStatus.ERROR
+            training_task.error_detail = FailedTrainingException(error_log=e.args[0])
         except KeyboardInterrupt:
+            logger.error("Training stopped by user")
             training_task.status = TaskStatus.STOPPED
             training_task.error_detail = FailedTrainingException(error_log="Training stopped by user").args[0]
         finally:
@@ -655,12 +658,6 @@ class Trainer:
             logging=configs.logging,
             environment=configs.environment,
         )
-
-    def _handle_training_error(self, training_task: TrainingTask, error):
-        """Handle training errors."""
-        e = FailedTrainingException(error_log=error.args[0])
-        training_task.status = TaskStatus.ERROR
-        training_task.error_detail = e.args[0]
 
     def _cleanup_and_move_files(self, configs: TrainerConfigs, destination_folder: Path):
         """Clean up temporary files and move result files."""
