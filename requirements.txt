@@ -16,3 +16,4 @@ celery
 pika
 pydantic_settings
 better-exceptions==0.3.3
+onnxsim==0.4.33
