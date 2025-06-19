@@ -610,6 +610,7 @@ class Trainer:
             logger.error(f"Training error: {e}")
             training_task.status = TaskStatus.ERROR
             training_task.error_detail = FailedTrainingException(error_log=e.args[0])
+            training_task = training_task_repository.update(db=db, model=training_task)
         except KeyboardInterrupt:
             logger.error("Training stopped by user")
             training_task.status = TaskStatus.STOPPED
