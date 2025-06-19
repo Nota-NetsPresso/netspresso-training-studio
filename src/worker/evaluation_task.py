@@ -263,6 +263,7 @@ def poll_and_start_evaluation(
     """
     with get_db_session() as db:
         try:
+            logger.info(f"Conversion task ID: {conversion_task_id}")
             conversion_task = conversion_task_repository.get_by_task_id(db=db, task_id=conversion_task_id)
 
             if conversion_task.status == TaskStatus.COMPLETED:
@@ -299,7 +300,7 @@ def poll_and_start_evaluation(
                 return poll_and_start_evaluation.apply_async(
                     args=[
                         api_key,
-                        conversion_task_id,
+                        conversion_task.task_id,
                         training_task_id,
                         dataset_id,
                         confidence_scores,
