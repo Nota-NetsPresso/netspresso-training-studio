@@ -5,13 +5,14 @@ from typing import Any, Dict, List
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.dataset import LocalTrainingDatasetPayload
-from src.api.v1.schemas.tasks.hyperparameter import (
+from src.api.deps import get_token
+from src.api.v1.schemas.tasks.common.dataset import LocalTrainingDatasetPayload
+from src.api.v1.schemas.tasks.training.hyperparameter import (
     OptimizerPayload,
     SchedulerPayload,
     TrainerModel,
 )
-from src.api.v1.schemas.tasks.training_task import (
+from src.api.v1.schemas.tasks.training.training_task import (
     FrameworkPayload,
     InputShape,
     PretrainedModelPayload,
@@ -202,7 +203,7 @@ class TrainingTaskService:
 
         return model_obj
 
-    def create_training_task(self, db: Session, training_in: TrainingCreate, token: str) -> TrainingTask:
+    def create_training_task(self, db: Session, training_in: TrainingCreate, api_key: str) -> TrainingTask:
         """Create a new training task.
 
         Args:
@@ -213,7 +214,8 @@ class TrainingTaskService:
         Returns:
             TrainingCreatePayload with the task ID
         """
-        user_info = user_service.get_user_info(token=token)
+        token = get_token(api_key=api_key)
+        user_info = user_service.get_user_info(token=token.access_token)
 
         # Create trained model object
         model_obj = self.create_trained_model(
@@ -270,9 +272,14 @@ class TrainingTaskService:
             logger.info(f"Training with pretrained model: {training_in.pretrained_model}")
             pretrained_model = training_in.pretrained_model
         else:
-            logger.info(f"Training with input model: {training_in.input_model_id}")
-            compression_task = compression_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
-            training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
+            input_model = model_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+            if input_model.type == ModelType.TRAINED_MODEL:
+                logger.info(f"Training with trained model: {training_in.input_model_id}")
+                training_task = training_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+            else:
+                logger.info(f"Training with compressed model: {training_in.input_model_id}")
+                compression_task = compression_task_repository.get_by_model_id(db=db, model_id=training_in.input_model_id)
+                training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
             pretrained_model = training_task.pretrained_model
 
         # Create training task
@@ -283,7 +290,7 @@ class TrainingTaskService:
             task=training_in.task,
             framework="pytorch",
             input_shapes=[InputShape(batch=1, channel=3, dimension=[img_size, img_size]).__dict__],
-            status=TaskStatus.IN_PROGRESS,
+            status=TaskStatus.NOT_STARTED,
             hyperparameter=hyperparameter,
             environment=environment,
             model_id=model_obj.model_id,
@@ -296,7 +303,7 @@ class TrainingTaskService:
 
         return training_task
 
-    def start_training_task(self, db: Session, training_in: TrainingCreate, training_task: TrainingTask, token: str) -> TrainingCreatePayload:
+    def start_training_task(self, db: Session, training_in: TrainingCreate, training_task: TrainingTask, api_key: str) -> TrainingCreatePayload:
         # Get input model info if retraining
         input_model_info = None
         if training_in.input_model_id:
@@ -305,7 +312,7 @@ class TrainingTaskService:
         # Prepare worker task parameters
         worker_params = {
             "training_task_id": training_task.task_id,
-            "api_key": token,
+            "api_key": api_key,
             "training_in": training_in.model_dump(),
             "unique_model_name": training_task.model.name,
             "training_type": training_task.training_type,

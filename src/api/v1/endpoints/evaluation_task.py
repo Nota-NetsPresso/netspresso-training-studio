@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Path, Query
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header, get_token
-from src.api.v1.schemas.tasks.dataset import EvaluationDatasetPayload
-from src.api.v1.schemas.tasks.device import SupportedDevicesResponse
-from src.api.v1.schemas.tasks.evaluation_task import (
+from src.api.v1.schemas.tasks.common.dataset import EvaluationDatasetPayload
+from src.api.v1.schemas.tasks.common.device import SupportedDevicesResponse
+from src.api.v1.schemas.tasks.evaluation.evaluation_task import (
     EvaluationCreate,
     EvaluationCreatePayload,
     EvaluationCreateResponse,
@@ -46,12 +47,17 @@ def create_evaluations_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> EvaluationCreateResponse:
-    evaluation_task_id = evaluation_task_service.create_evaluation_task(
-        db=db, evaluation_in=request_body, api_key=api_key
-    )
+    try:
+        evaluation_task_id = evaluation_task_service.create_evaluation_task(
+            db=db, evaluation_in=request_body, api_key=api_key
+        )
 
-    response_data = EvaluationCreatePayload(task_id=evaluation_task_id)
-    return EvaluationCreateResponse(data=response_data)
+        response_data = EvaluationCreatePayload(task_id=evaluation_task_id)
+        return EvaluationCreateResponse(data=response_data)
+
+    except Exception as e:
+        logger.error(f"Error starting evaluation task: {e}")
+        raise e
 
 
 # TODO: Will be removed after the evaluation task is migrated to the new task system
@@ -101,16 +107,16 @@ def get_evaluation_tasks(
     )
 
 
-@router.get("/evaluations/{converted_model_id}/datasets", response_model=EvaluationDatasetsResponse, status_code=200)
+@router.get("/evaluations/{model_id}/datasets", response_model=EvaluationDatasetsResponse, status_code=200)
 def get_unique_evaluation_datasets(
-    converted_model_id: str = Path(..., description="Converted Model ID to get unique datasets for"),
+    model_id: str = Path(..., description="Converted Model ID to get unique datasets for"),
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> EvaluationDatasetsResponse:
     evaluation_datasets = evaluation_task_service.get_unique_datasets_by_model_id(
         db=db,
         token=token.access_token,
-        model_id=converted_model_id
+        model_id=model_id
     )
 
     datasets = [
@@ -119,16 +125,16 @@ def get_unique_evaluation_datasets(
     ]
 
     response_data = EvaluationDatasetsPayload(
-        model_id=converted_model_id,
+        model_id=model_id,
         datasets=datasets
     )
 
     return EvaluationDatasetsResponse(data=response_data)
 
 
-@router.get("/evaluations/{converted_model_id}/datasets/{dataset_id}/results", response_model=EvaluationResultsResponse, status_code=200)
+@router.get("/evaluations/{model_id}/datasets/{dataset_id}/results", response_model=EvaluationResultsResponse, status_code=200)
 def get_evaluation_results(
-    converted_model_id: str = Path(..., description="Converted Model ID"),
+    model_id: str = Path(..., description="Converted Model ID"),
     dataset_id: str = Path(..., description="Dataset ID"),
     start: int = Query(0, description="Pagination start index"),
     size: int = Query(20, description="Page size (number of images)"),
@@ -139,7 +145,7 @@ def get_evaluation_results(
     evaluation_result = evaluation_task_service.get_evaluation_result_details(
         db=db,
         token=token.access_token,
-        converted_model_id=converted_model_id,
+        model_id=model_id,
         dataset_id=dataset_id,
         start=start,
         size=size

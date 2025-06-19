@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, Query
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.api.deps import api_key_header
-from src.api.v1.schemas.tasks.conversion_task import (
+from src.api.v1.schemas.tasks.common.device import SupportedDevicesResponse
+from src.api.v1.schemas.tasks.conversion.conversion_task import (
     ConversionCreate,
     ConversionCreateResponse,
     ConversionResponse,
 )
-from src.api.v1.schemas.tasks.device import SupportedDevicesResponse
 from src.core.db.session import get_db
 from src.enums.conversion import SourceFramework
 from src.services.conversion_task import conversion_task_service
@@ -36,9 +37,23 @@ def create_conversions_task(
     db: Session = Depends(get_db),
     api_key: str = Depends(api_key_header),
 ) -> ConversionCreateResponse:
-    conversion_task = conversion_task_service.create_conversion_task(db=db, conversion_in=request_body, api_key=api_key)
+    try:
+        existing_task = conversion_task_service.check_conversion_task_exists(db=db, conversion_in=request_body)
+        if existing_task:
+            return ConversionCreateResponse(data=existing_task)
 
-    return ConversionCreateResponse(data=conversion_task)
+        conversion_task = conversion_task_service.create_conversion_task(db=db, conversion_in=request_body, api_key=api_key)
+        conversion_task_payload = conversion_task_service.start_conversion_task(
+            conversion_in=request_body,
+            conversion_task=conversion_task,
+            api_key=api_key,
+        )
+
+        return ConversionCreateResponse(data=conversion_task_payload)
+
+    except Exception as e:
+        logger.error(f"Error starting conversion task: {e}")
+        raise e
 
 
 @router.get("/conversions/{task_id}", response_model=ConversionResponse)

@@ -15,3 +15,4 @@ aenum
 celery
 pika
 pydantic_settings
+better-exceptions==0.3.3

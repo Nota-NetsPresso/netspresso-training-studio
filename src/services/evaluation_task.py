@@ -6,17 +6,17 @@ from typing import Dict, List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.conversion_task import (
-    TargetFrameworkPayload,
-)
-from src.api.v1.schemas.tasks.device import (
+from src.api.v1.schemas.tasks.common.device import (
     HardwareTypePayload,
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
     SupportedDevicePayload,
     SupportedDeviceResponse,
 )
-from src.api.v1.schemas.tasks.evaluation_task import (
+from src.api.v1.schemas.tasks.conversion.conversion_task import (
+    TargetFrameworkPayload,
+)
+from src.api.v1.schemas.tasks.evaluation.evaluation_task import (
     BoundingBox,
     EvaluationCreate,
     EvaluationPayload,
@@ -197,7 +197,7 @@ class EvaluationTaskService:
             task_result = run_multiple_evaluations.apply_async(
                 kwargs={
                     "api_key": api_key,
-                    "model_id": model.model_id,
+                    "input_model_id": model.model_id,
                     "dataset_id": evaluation_in.dataset_path,
                     "training_task_id": evaluation_in.training_task_id,
                     "confidence_scores": confidence_scores,
@@ -235,7 +235,7 @@ class EvaluationTaskService:
             task_result = run_multiple_evaluations.apply_async(
                 kwargs={
                     "api_key": api_key,
-                    "model_id": conversion_task.model_id,
+                    "input_model_id": conversion_task.model_id,
                     "dataset_id": evaluation_in.dataset_path,
                     "training_task_id": evaluation_in.training_task_id,
                     "confidence_scores": confidence_scores,
@@ -260,12 +260,8 @@ class EvaluationTaskService:
             if not model:
                 raise Exception(f"Input model with ID {evaluation_in.input_model_id} not found")
 
-            # Get project information
-            project = project_service.get_project(db=db, project_id=model.project_id, api_key=api_key)
-
             # Create input model and output directory paths
-            project_abs_path = Path(project.project_abs_path)
-            input_model_dir = project_abs_path / model.object_path
+            input_model_dir = Path(model.object_path)
 
             input_model_path = input_model_dir / "model.onnx"
             output_dir = input_model_dir / "converted"
@@ -527,7 +523,7 @@ class EvaluationTaskService:
         self,
         db: Session,
         token: str,
-        converted_model_id: str,
+        model_id: str,
         dataset_id: str,
         start: int = 0,
         size: int = 20,
@@ -549,14 +545,14 @@ class EvaluationTaskService:
         evaluation_tasks = self.get_evaluation_results_by_model_and_dataset(
             db=db,
             token=token,
-            model_id=converted_model_id,
+            model_id=model_id,
             dataset_id=dataset_id
         )
 
         if not evaluation_tasks:
-            logger.warning(f"No evaluation tasks found for model {converted_model_id} and dataset {dataset_id}")
+            logger.warning(f"No evaluation tasks found for model {model_id} and dataset {dataset_id}")
             return EvaluationResultsPayload(
-                model_id=converted_model_id,
+                model_id=model_id,
                 dataset_id=dataset_id,
                 results=[],
                 result_count=0,
@@ -566,7 +562,7 @@ class EvaluationTaskService:
         if evaluation_tasks[0].is_dataset_deleted:
             logger.info(f"Dataset {dataset_id} is deleted. Returning empty results.")
             return EvaluationResultsPayload(
-                model_id=converted_model_id,
+                model_id=model_id,
                 dataset_id=dataset_id,
                 results=[],
                 result_count=0,
@@ -614,7 +610,7 @@ class EvaluationTaskService:
             if total_count == 0:
                 logger.warning("No image predictions were created")
                 return EvaluationResultsPayload(
-                    model_id=converted_model_id,
+                    model_id=model_id,
                     dataset_id=dataset_id,
                     results=[],
                     result_count=0,
@@ -633,7 +629,7 @@ class EvaluationTaskService:
 
             # Return combined results with pagination info
             return EvaluationResultsPayload(
-                model_id=converted_model_id,
+                model_id=model_id,
                 dataset_id=dataset_id,
                 results=paginated_predictions,
                 result_count=len(paginated_predictions),

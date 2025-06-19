@@ -217,7 +217,7 @@ class Trainer:
 
         return result_paths[0]
 
-    def set_dataset(self, dataset_root_path: str, dataset_name: Optional[str] = None):
+    def set_dataset(self, training_task: TrainingTask, dataset_root_path: str, dataset_name: Optional[str] = None) -> TrainingTask:
         if dataset_name is None:
             dataset_name = Path(dataset_root_path).name
         root_path = Path(dataset_root_path).resolve().as_posix()
@@ -244,17 +244,12 @@ class Trainer:
         valid_image_count = len(list(valid_image_path.glob("*.*"))) if valid_image_path.is_dir() else 1
         total_image_count = train_image_count + valid_image_count
 
-        self.train_dataset = Dataset(
-            name=dataset_name,
-            path=root_path,
-            id_mapping=self.data.id_mapping,
-            palette=self.data.pallete,
-            task_type=self.task,
-            class_count=len(self.data.id_mapping),
-            count=total_image_count,
-            storage_location=StorageLocation.STORAGE if self.is_dataforge else StorageLocation.LOCAL,
-            storage_info={"dataset_id": Path(root_path).name}
-        )
+        training_task.dataset.id_mapping = self.data.id_mapping
+        training_task.dataset.palette = self.data.pallete
+        training_task.dataset.class_count = len(self.data.id_mapping)
+        training_task.dataset.count = total_image_count
+
+        return training_task
 
     def _save_evaluation_dataset(self, evaluation_dataset):
         with get_db_session() as db:
@@ -590,20 +585,24 @@ class Trainer:
         training_task_id: str,
         output_dir: Optional[str] = "./outputs",
     ) -> TrainingTask:
-        # Validate configuration and initialize
-        self._validate_config()
-        self._apply_img_size()
+        temp_dir = Path(tempfile.mkdtemp(prefix="netspresso_training_"))
 
-        temp_dir = Path(tempfile.mkdtemp(prefix="training_task_"))
+        self._apply_img_size()
 
         # Setup logging
         self._setup_logging(output_dir, temp_dir.name)
         self.environment.gpus = gpus
 
-        # Create training configurations
-        configs = self._create_training_configs()
-
         training_task = training_task_repository.get_by_task_id(db=db, task_id=training_task_id)
+        training_task = self.set_dataset(
+            training_task=training_task,
+            dataset_root_path=training_task.dataset.path,
+            dataset_name=training_task.dataset.name,
+        )
+        training_task.status = TaskStatus.IN_PROGRESS
+        training_task = training_task_repository.update(db=db, model=training_task)
+
+        configs = self._create_training_configs()
 
         try:
             self._execute_training(gpus, configs)

@@ -4,13 +4,7 @@ from typing import List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.conversion_task import (
-    ConversionCreate,
-    ConversionCreatePayload,
-    ConversionPayload,
-    TargetFrameworkPayload,
-)
-from src.api.v1.schemas.tasks.device import (
+from src.api.v1.schemas.tasks.common.device import (
     HardwareTypePayload,
     PrecisionForConversionPayload,
     SoftwareVersionPayload,
@@ -18,17 +12,26 @@ from src.api.v1.schemas.tasks.device import (
     SupportedDeviceResponse,
     TargetDevicePayload,
 )
-from src.enums.conversion import SourceFramework
+from src.api.v1.schemas.tasks.conversion.conversion_task import (
+    ConversionCreate,
+    ConversionCreatePayload,
+    ConversionPayload,
+    TargetFrameworkPayload,
+)
+from src.enums.conversion import SourceFramework, TargetFramework
+from src.enums.device import DeviceName, SoftwareVersion
+from src.enums.model import DataType, ModelType
 from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
 from src.models.conversion import ConversionTask
+from src.models.model import Model
 from src.modules.clients.enums.task import TaskStatusForDisplay
 from src.modules.clients.launcher.v2.schemas.common import DeviceInfo
 from src.modules.converter.v2.converter import ConverterV2
 from src.repositories.base import Order, TimeSort
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.model import model_repository
-from src.services.project import project_service
+from src.utils.file import FileHandler
 from src.worker.conversion_task import convert_model
 
 
@@ -83,9 +86,53 @@ class ConversionTaskService:
             hardware_types=[HardwareTypePayload(name=hardware_type) for hardware_type in device.hardware_types],
         )
 
-    def create_conversion_task(
-        self, db: Session, conversion_in: ConversionCreate, api_key: str
-    ) -> ConversionCreatePayload:
+    def _generate_model_name(
+        self,
+        input_model_name: str,
+        framework: TargetFramework,
+        device_name: DeviceName,
+        data_type: DataType,
+        software_version: Optional[SoftwareVersion],
+    ) -> str:
+        # Generate model name with safe enum value handling
+        model_name_parts = [
+            input_model_name,
+            framework.value,
+            device_name.value,
+        ]
+        if software_version:  # Add only if not None
+            model_name_parts.append(software_version.value)
+
+        model_name_parts.append(data_type.value)
+        model_name = "_".join(map(str, model_name_parts))
+        logger.info(f"Model name: {model_name}")
+
+        return model_name
+
+    def create_converted_model(self, db: Session, model: Model, framework: TargetFramework, device_name: DeviceName, data_type: DataType, software_version: Optional[SoftwareVersion]) -> Model:
+        model_id = generate_uuid(entity="model")
+        extension = FileHandler.get_extension(framework=framework)
+        base_object_path = f"{model.user_id}/{model.project_id}/{model_id}/model{extension}"
+        model_name = self._generate_model_name(
+            input_model_name=model.name,
+            framework=framework,
+            device_name=device_name,
+            data_type=data_type,
+            software_version=software_version,
+        )
+        model_obj = Model(
+            model_id=model_id,
+            name=model_name,
+            type=ModelType.CONVERTED_MODEL,
+            project_id=model.project_id,
+            user_id=model.user_id,
+            object_path=base_object_path
+        )
+        model_obj = model_repository.save(db=db, model=model_obj)
+
+        return model_obj
+
+    def check_conversion_task_exists(self, db: Session, conversion_in: ConversionCreate) -> Optional[ConversionCreatePayload]:
         # Check if a task with the same options already exists
         existing_tasks = conversion_task_repository.get_all_by_model_id(
             db=db,
@@ -118,30 +165,56 @@ class ConversionTaskService:
                 logger.info(f"Previous conversion task ended with status {task.status}, creating new task")
                 break
 
-        # Get model from trained models repository
-        model = model_repository.get_by_model_id(db=db, model_id=conversion_in.input_model_id)
+        return None
 
-        # Create output directory path as a 'converted' subfolder of input model path
-        input_model_dir = Path(model.object_path)
+    def create_conversion_task(self, db: Session, conversion_in: ConversionCreate, api_key: str) -> ConversionTask:
+        input_model = model_repository.get_by_model_id(db=db, model_id=conversion_in.input_model_id)
 
-        input_model_path = input_model_dir / "model.onnx"
-        logger.info(f"Input model path: {input_model_path}")
-        logger.info(f"Conversion Info: {conversion_in.model_dump()}")
-
-        conversion_task_id = generate_uuid(entity="task")
-        _ = convert_model.apply_async(
-            kwargs={
-                "api_key": api_key,
-                "input_model_path": input_model_path.as_posix(),
-                "target_framework": conversion_in.framework,
-                "target_device_name": conversion_in.device_name,
-                "target_data_type": conversion_in.precision,
-                "target_software_version": conversion_in.software_version,
-                "input_model_id": conversion_in.input_model_id,
-            },
-            conversion_task_id=conversion_task_id,
+        converted_model = self.create_converted_model(
+            db=db,
+            model=input_model,
+            framework=conversion_in.framework,
+            device_name=conversion_in.device_name,
+            data_type=conversion_in.precision,
+            software_version=conversion_in.software_version,
         )
-        return ConversionCreatePayload(task_id=conversion_task_id)
+
+        conversion_task = ConversionTask(
+            framework=conversion_in.framework,
+            device_name=conversion_in.device_name,
+            software_version=conversion_in.software_version,
+            precision=conversion_in.precision,
+            status=TaskStatus.NOT_STARTED,
+            input_model_id=conversion_in.input_model_id,
+            model_id=converted_model.model_id,
+            user_id=input_model.user_id,
+        )
+        conversion_task = conversion_task_repository.save(db=db, model=conversion_task)
+
+        return conversion_task
+
+    def start_conversion_task(
+        self,
+        conversion_in: ConversionCreate,
+        conversion_task: ConversionTask,
+        api_key: str,
+    ) -> ConversionCreatePayload:
+        worker_params = {
+            "api_key": api_key,
+            "input_model_id": conversion_in.input_model_id,
+            "conversion_task_id": conversion_task.task_id,
+            "target_framework": conversion_in.framework,
+            "target_device_name": conversion_in.device_name,
+            "target_data_type": conversion_in.precision,
+            "target_software_version": conversion_in.software_version,
+        }
+
+        _ = convert_model.apply_async(
+            kwargs=worker_params,
+            conversion_task_id=conversion_task.task_id,
+        )
+
+        return ConversionCreatePayload(task_id=conversion_task.task_id)
 
     def get_conversion_task(self, db: Session, task_id: str, api_key: str) -> ConversionPayload:
         conversion_task = conversion_task_repository.get_by_task_id(db, task_id)

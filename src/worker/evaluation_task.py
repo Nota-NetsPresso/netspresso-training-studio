@@ -5,11 +5,11 @@ from typing import List
 
 from celery import chain, signature
 
-from src.api.v1.schemas.tasks.dataset import DatasetCreate
-from src.api.v1.schemas.tasks.environment import EnvironmentCreate
-from src.api.v1.schemas.tasks.hyperparameter import HyperparameterCreate
-from src.api.v1.schemas.tasks.training_task import TrainingCreate
-from src.core.db.session import SessionLocal
+from src.api.v1.schemas.tasks.common.dataset import DatasetCreate
+from src.api.v1.schemas.tasks.training.environment import EnvironmentCreate
+from src.api.v1.schemas.tasks.training.hyperparameter import HyperparameterCreate
+from src.api.v1.schemas.tasks.training.training_task import TrainingCreate
+from src.core.db.session import SessionLocal, get_db_session
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
 from src.models.base import generate_uuid
@@ -183,7 +183,7 @@ def evaluate_model_task(
 def run_multiple_evaluations(
     self,
     api_key: str,
-    model_id: str,
+    input_model_id: str,
     dataset_id: str,
     training_task_id: str,
     confidence_scores: List[float],
@@ -193,7 +193,7 @@ def run_multiple_evaluations(
 
     Args:
         api_key: API key for authentication
-        model_id: ID of the model to evaluate
+        input_model_id: ID of the model to evaluate
         dataset_id: ID of the dataset to use for evaluation
         training_task_id: ID of the related training task
         gpus: Number of GPUs to use
@@ -215,7 +215,7 @@ def run_multiple_evaluations(
         _ = evaluate_model_task.apply_async(
             kwargs={
                 "api_key": api_key,
-                "model_id": model_id,
+                "model_id": input_model_id,
                 "dataset_id": dataset_id,
                 "training_task_id": training_task_id,
                 "evaluation_task_id": evaluation_task_id,
@@ -235,10 +235,11 @@ def run_multiple_evaluations(
 
 @celery_app.task(name='poll_and_start_evaluation')
 def poll_and_start_evaluation(
-    conversion_task_id: str,
+    self,
     api_key: str,
-    dataset_id: str,
+    conversion_task_id: str,
     training_task_id: str,
+    dataset_id: str,
     confidence_scores: List[float],
     gpus: int = 0,
     evaluation_task_id: str = None
@@ -260,72 +261,67 @@ def poll_and_start_evaluation(
     Returns:
         evaluation_task_id: ID of the started evaluation task
     """
-    session = SessionLocal()
-    try:
-        conversion_task = conversion_task_repository.get_by_task_id(db=session, task_id=conversion_task_id)
+    with get_db_session() as db:
+        try:
+            conversion_task = conversion_task_repository.get_by_task_id(db=db, task_id=conversion_task_id)
 
-        if conversion_task.status == TaskStatus.COMPLETED:
-            model_id = conversion_task.model_id
-            logger.info(f"Conversion completed successfully. Model ID: {model_id}")
+            if conversion_task.status == TaskStatus.COMPLETED:
+                model_id = conversion_task.model_id
+                logger.info(f"Conversion completed successfully. Model ID: {model_id}")
 
-            # If there's no generated evaluation task ID, create one
-            if not evaluation_task_id:
-                evaluation_task_id = generate_uuid(entity="task")
+                # If there's no generated evaluation task ID, create one
+                if not evaluation_task_id:
+                    evaluation_task_id = generate_uuid(entity="task")
 
-            # The conversion is complete, so run the evaluation as an async task
-            _ = run_multiple_evaluations.apply_async(
-                kwargs={
-                    "api_key": api_key,
-                    "model_id": model_id,
-                    "dataset_id": dataset_id,
-                    "training_task_id": training_task_id,
-                    "confidence_scores": confidence_scores,
-                    "gpus": gpus,
-                },
-                task_id=evaluation_task_id,
-            )
+                # The conversion is complete, so run the evaluation as an async task
+                _ = run_multiple_evaluations.apply_async(
+                    kwargs={
+                        "api_key": api_key,
+                        "input_model_id": model_id,
+                        "dataset_id": dataset_id,
+                        "training_task_id": training_task_id,
+                        "confidence_scores": confidence_scores,
+                        "gpus": gpus,
+                    },
+                    task_id=evaluation_task_id,
+                )
 
-            logger.info(f"Started evaluation task with ID: {evaluation_task_id}")
-            return evaluation_task_id
+                logger.info(f"Started evaluation task with ID: {evaluation_task_id}")
+                return evaluation_task_id
 
-        elif conversion_task.status in [TaskStatus.STOPPED, TaskStatus.ERROR]:
-            error_message = conversion_task.error_detail
-            logger.error(f"Conversion failed: {error_message}")
-            raise Exception(f"Conversion failed: {error_message}")
-        else:
-            # The conversion is still in progress, so schedule this task again
-            logger.info(f"Conversion in progress. Status: {conversion_task.status}. Scheduling poll again.")
-            return poll_and_start_evaluation.apply_async(
-                args=[
-                    conversion_task_id,
-                    api_key,
-                    dataset_id,
-                    training_task_id,
-                    confidence_scores,
-                    gpus,
-                    evaluation_task_id
-                ],
-                countdown=POLLING_INTERVAL
-            )
-    except Exception as e:
-        logger.error(f"Evaluation task error: {str(e)}")
-        raise e
-    finally:
-        session.close()
+            elif conversion_task.status in [TaskStatus.STOPPED, TaskStatus.ERROR]:
+                error_message = conversion_task.error_detail
+                logger.error(f"Conversion failed: {error_message}")
+                raise Exception(f"Conversion failed: {error_message}")
+            else:
+                # The conversion is still in progress, so schedule this task again
+                logger.info(f"Conversion in progress. Status: {conversion_task.status}. Scheduling poll again.")
+                return poll_and_start_evaluation.apply_async(
+                    args=[
+                        api_key,
+                        conversion_task_id,
+                        training_task_id,
+                        dataset_id,
+                        confidence_scores,
+                        gpus,
+                        evaluation_task_id
+                    ],
+                    countdown=POLLING_INTERVAL
+                )
+        except Exception as e:
+            logger.error(f"Evaluation task error: {str(e)}")
+            raise e
 
 
 @celery_app.task(name='chain_conversion_and_evaluation')
 def chain_conversion_and_evaluation(
     api_key: str,
-    input_model_path: str,
-    output_dir: str,
+    input_model_id: str,
+    conversion_task_id: str,
     target_framework: str,
     target_device_name: str,
     target_data_type: str,
     target_software_version: str,
-    input_layer,
-    dataset_path: str,
-    input_model_id: str,
     dataset_id: str,
     training_task_id: str,
     confidence_scores: List[float],
@@ -361,15 +357,12 @@ def chain_conversion_and_evaluation(
         'convert_model',
         kwargs={
             "api_key": api_key,
-            "input_model_path": input_model_path,
-            "output_dir": output_dir,
+            "input_model_id": input_model_id,
+            "conversion_task_id": conversion_task_id,
             "target_framework": target_framework,
             "target_device_name": target_device_name,
             "target_data_type": target_data_type,
             "target_software_version": target_software_version,
-            "input_layer": input_layer,
-            "dataset_path": dataset_path,
-            "input_model_id": input_model_id,
         }
     )
 
@@ -378,11 +371,12 @@ def chain_conversion_and_evaluation(
         'poll_and_start_evaluation',
         kwargs={
             "api_key": api_key,
-            "dataset_id": dataset_id,
+            "conversion_task_id": conversion_task_id,
             "training_task_id": training_task_id,
+            "dataset_id": dataset_id,
             "confidence_scores": confidence_scores,
             "gpus": gpus,
-            "evaluation_task_id": evaluation_task_id
+            "evaluation_task_id": evaluation_task_id,
         }
     )
 

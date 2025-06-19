@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.api.v1.schemas.base import ResponseItem
-from src.api.v1.schemas.tasks.conversion_task import ConversionForEvaluationCreate
+from src.api.v1.schemas.tasks.conversion.conversion_task import ConversionForEvaluationCreate
 from src.enums.training import (
     FRAMEWORK_DISPLAY_MAP,
     MODEL_DISPLAY_MAP,
@@ -17,9 +17,10 @@ from src.enums.training import (
     PretrainedModelGroup,
     Task,
     TaskDisplay,
+    TrainingType,
 )
 
-from .dataset import DatasetCreate, TrainingDatasetPayload
+from ..common.dataset import DatasetCreate, TrainingDatasetPayload
 from .environment import EnvironmentCreate, EnvironmentPayload
 from .hyperparameter import HyperparameterCreate, HyperparameterPayload
 from .performance import PerformancePayload
@@ -92,6 +93,7 @@ class TrainingPayload(BaseModel):
     pretrained_model: PretrainedModelPayload
     task: TaskPayload
     framework: FrameworkPayload
+    training_type: TrainingType
     input_shapes: List[Dict]
     status: str
     error_detail: Optional[Dict] = None

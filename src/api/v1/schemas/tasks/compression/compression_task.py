@@ -56,13 +56,13 @@ class CompressionCreate(BaseModel):
 class ModelResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    size: int
-    flops: int
-    number_of_parameters: int
-    trainable_parameters: int
-    non_trainable_parameters: int
-    number_of_layers: Optional[int]
-    result_type: str  # 'original' or 'compressed'
+    size: int = Field(default=0, description="Model size in bytes", ge=0)
+    flops: int = Field(default=0, description="Number of FLOPS", ge=0)
+    number_of_parameters: int = Field(default=0, description="Number of parameters", ge=0)
+    trainable_parameters: int = Field(default=0, description="Trainable parameters", ge=0)
+    non_trainable_parameters: int = Field(default=0, description="Non-trainable parameters", ge=0)
+    number_of_layers: Optional[int] = Field(default=None, description="Number of layers")
+    result_type: str = Field(default="original", description="Result type", enum=["original", "compressed"])
 
 
 class CompressionPayload(BaseModel):
@@ -74,7 +74,12 @@ class CompressionPayload(BaseModel):
     method: CompressionMethod
     ratio: float
     options: RecommendationOptions
-    model_results: List[ModelResult]
+    model_results: List[ModelResult] = Field(
+        default_factory=lambda: [
+            ModelResult(result_type="original"),
+            ModelResult(result_type="compressed")
+        ]
+    )
     related_task_ids: List[str] = Field(default_factory=list)
     user_id: str
     status: str

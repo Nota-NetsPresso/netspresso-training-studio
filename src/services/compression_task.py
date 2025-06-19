@@ -3,21 +3,57 @@ from typing import List, Optional, Tuple
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.api.v1.schemas.tasks.compression_task import (
+from src.api.v1.schemas.tasks.compression.compression_task import (
     CompressionCreate,
     CompressionCreatePayload,
     CompressionPayload,
+    ModelResult,
 )
+from src.enums.compression import CompressionMethod
+from src.enums.model import ModelType
 from src.enums.task import TaskStatus
 from src.models.base import generate_uuid
-from src.models.compression import CompressionTask
+from src.models.compression import CompressionModelResult, CompressionTask
+from src.models.model import Model
 from src.repositories.compression import compression_task_repository
 from src.repositories.model import model_repository
 from src.worker.compression_task import compress_model
 
 
 class CompressionTaskService:
-    def create_compression_task(self, db: Session, compression_in: CompressionCreate, api_key: str) -> CompressionCreatePayload:
+    def _generate_model_name(self, input_model_name: str, compression_method: CompressionMethod, recommendation_ratio: float) -> str:
+        model_name_parts = [
+            input_model_name,
+            compression_method.value,
+            recommendation_ratio,
+        ]
+        model_name = "_".join(map(str, model_name_parts))
+        logger.info(f"Model name: {model_name}")
+
+        return model_name
+
+    def create_compressed_model(self, db: Session, model: Model, compression_method: CompressionMethod, recommendation_ratio: float) -> Model:
+        model_id = generate_uuid(entity="model")
+        base_object_path = f"{model.user_id}/{model.project_id}/{model_id}/model.pt"
+        model_name = self._generate_model_name(
+            input_model_name=model.name,
+            compression_method=compression_method,
+            recommendation_ratio=recommendation_ratio,
+        )
+        model_obj = Model(
+            model_id=model_id,
+            name=model_name,
+            type=ModelType.COMPRESSED_MODEL,
+            is_retrainable=True,
+            project_id=model.project_id,
+            user_id=model.user_id,
+            object_path=base_object_path  # Store base path only
+        )
+        model_obj = model_repository.save(db=db, model=model_obj)
+
+        return model_obj
+
+    def check_compression_task_exists(self, db: Session, compression_in: CompressionCreate) -> Optional[CompressionCreatePayload]:
         # Check if a task with the same options already exists
         existing_tasks = compression_task_repository.get_all_by_input_model_id(
             db=db,
@@ -43,21 +79,60 @@ class CompressionTaskService:
                 logger.info(f"Previous compression task ended with status {task.status}, creating new task")
                 break
 
-        # Get model from trained models repository
-        compression_task_id = generate_uuid(entity="task")
-        _ = compress_model.apply_async(
-            kwargs={
-                "api_key": api_key,
-                "method": compression_in.method,
-                "recommendation_method": compression_in.recommendation_method,
-                "ratio": compression_in.ratio,
-                "options": compression_in.options.model_dump(),
-                "input_model_id": compression_in.input_model_id,
-                "compression_task_id": compression_task_id,
-            },
-            compression_task_id=compression_task_id,
+        return None
+
+    def create_compression_task(self, db: Session, compression_in: CompressionCreate, api_key: str) -> CompressionTask:
+        input_model = model_repository.get_by_model_id(db=db, model_id=compression_in.input_model_id)
+
+        compressed_model = self.create_compressed_model(
+            db=db,
+            model=input_model,
+            compression_method=compression_in.method,
+            recommendation_ratio=compression_in.ratio,
         )
-        return CompressionCreatePayload(task_id=compression_task_id)
+
+        model_results = [
+            CompressionModelResult(result_type="original"),
+            CompressionModelResult(result_type="compressed")
+        ]
+
+        compression_task = CompressionTask(
+            method=compression_in.method,
+            ratio=compression_in.ratio,
+            options=compression_in.options.model_dump(),
+            status=TaskStatus.NOT_STARTED,
+            input_model_id=compression_in.input_model_id,
+            model_id=compressed_model.model_id,
+            user_id=input_model.user_id,
+            model_results=model_results,
+        )
+        compression_task = compression_task_repository.save(db=db, model=compression_task)
+
+        return compression_task
+
+    def start_compression_task(
+        self,
+        compression_in: CompressionCreate,
+        compression_task: CompressionTask,
+        api_key: str,
+    ) -> CompressionCreatePayload:
+        # Prepare worker task parameters
+        worker_params = {
+            "api_key": api_key,
+            "input_model_id": compression_in.input_model_id,
+            "compression_task_id": compression_task.task_id,
+            "compression_method": compression_in.method,
+            "recommendation_method": compression_in.recommendation_method,
+            "recommendation_ratio": compression_in.ratio,
+            "options": compression_in.options.model_dump(),
+        }
+
+        _ = compress_model.apply_async(
+            kwargs=worker_params,
+            compression_task_id=compression_task.task_id,
+        )
+
+        return CompressionCreatePayload(task_id=compression_task.task_id)
 
     def get_compression_task(self, db: Session, compression_task_id: str, api_key: str) -> CompressionPayload:
         compression_task = compression_task_repository.get_by_task_id(db=db, task_id=compression_task_id)
