@@ -14,6 +14,7 @@ from src.api.v1.schemas.tasks.common.device import (
     SupportedDeviceResponse,
 )
 from src.api.v1.schemas.tasks.conversion.conversion_task import (
+    ConversionCreate,
     TargetFrameworkPayload,
 )
 from src.api.v1.schemas.tasks.evaluation.evaluation_task import (
@@ -39,7 +40,7 @@ from src.modules.converter.v2.converter import ConverterV2
 from src.repositories.conversion import conversion_task_repository
 from src.repositories.evaluation import evaluation_dataset_repository, evaluation_task_repository
 from src.repositories.model import model_repository
-from src.services.project import project_service
+from src.services.conversion_task import conversion_task_service
 from src.services.user import user_service
 from src.utils.file import FileHandler
 from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
@@ -260,27 +261,33 @@ class EvaluationTaskService:
             if not model:
                 raise Exception(f"Input model with ID {evaluation_in.input_model_id} not found")
 
-            # Create input model and output directory paths
-            input_model_dir = Path(model.object_path)
-
-            input_model_path = input_model_dir / "model.onnx"
-            output_dir = input_model_dir / "converted"
-
-            logger.info(f"Input model path: {input_model_path}")
-            logger.info(f"Output directory: {output_dir}")
+            conversion_in = ConversionCreate(
+                input_model_id=evaluation_in.input_model_id,
+                framework=evaluation_in.conversion.framework,
+                device_name=evaluation_in.conversion.device_name,
+                precision=evaluation_in.conversion.precision,
+                software_version=evaluation_in.conversion.software_version,
+            )
+            conversion_task = conversion_task_service.create_conversion_task(
+                db=db,
+                conversion_in=conversion_in,
+                api_key=api_key,
+            )
+            conversion_task_payload = conversion_task_service.start_conversion_task(
+                conversion_in=conversion_in,
+                conversion_task=conversion_task,
+                api_key=api_key,
+            )
 
             task_result = chain_conversion_and_evaluation.apply_async(
                 kwargs={
                     "api_key": api_key,
-                    "input_model_path": input_model_path.as_posix(),
-                    "output_dir": output_dir.as_posix(),
+                    "input_model_id": evaluation_in.input_model_id,
+                    "conversion_task_id": conversion_task_payload.task_id,
                     "target_framework": evaluation_in.conversion.framework,
                     "target_device_name": evaluation_in.conversion.device_name,
                     "target_data_type": evaluation_in.conversion.precision,
                     "target_software_version": evaluation_in.conversion.software_version,
-                    "input_layer": None,
-                    "dataset_path": None,
-                    "input_model_id": evaluation_in.input_model_id,
                     "dataset_id": evaluation_in.dataset_path,
                     "training_task_id": evaluation_in.training_task_id,
                     "confidence_scores": confidence_scores,
