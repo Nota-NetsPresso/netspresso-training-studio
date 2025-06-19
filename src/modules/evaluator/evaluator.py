@@ -320,7 +320,7 @@ class Evaluator:
         if input_model.type == ModelType.TRAINED_MODEL:
             remote_model_path = Path(input_model.object_path) / "model.onnx"
         else:
-            remote_model_path = Path(input_model.object_path)
+            remote_model_path = Path(input_model.object_path).parent / "model.onnx"
         local_path = download_dir / remote_model_path.name
 
         logger.info(f"Downloading input model from Zenko: {remote_model_path}")
