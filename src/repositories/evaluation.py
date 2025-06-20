@@ -205,6 +205,25 @@ class EvaluationTaskRepository(BaseRepository[EvaluationTask]):
             conditions=conditions,
         )
 
+    def get_all_by_model_ids(
+        self,
+        db: Session,
+        model_ids: List[str],
+        order: Order = Order.ASC,
+        time_sort: Optional[TimeSort] = None,
+        is_deleted: bool = False,
+    ) -> List[EvaluationTask]:
+        conditions = [
+            self.model.input_model_id.in_(model_ids),
+            self.model.is_deleted == is_deleted,
+        ]
+        return self.find_all(
+            db=db,
+            conditions=conditions,
+            order=order,
+            time_sort=time_sort,
+        )
+
 
 class EvaluationDatasetRepository(BaseRepository[EvaluationDataset]):
     def get_by_dataforge_dataset_id(self, db: Session, dataset_id: str) -> Optional[EvaluationDataset]:

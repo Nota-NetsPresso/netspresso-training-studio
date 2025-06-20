@@ -696,5 +696,15 @@ class EvaluationTaskService:
 
         return EvaluationPayload.model_validate(evaluation_task)
 
+    def get_evaluation_tasks_by_ids(self, db: Session, model_ids: List[str]) -> List[EvaluationPayload]:
+        evaluation_tasks = evaluation_task_repository.get_all_by_model_ids(
+            db=db, model_ids=model_ids, order=Order.DESC, time_sort=TimeSort.CREATED_AT, is_deleted=False
+        )
+        return [EvaluationPayload.model_validate(task) for task in evaluation_tasks]
+
+    def get_evaluation_task(self, db: Session, task_id: str) -> EvaluationPayload:
+        evaluation_task = evaluation_task_repository.get_by_task_id(db, task_id)
+        return EvaluationPayload.model_validate(evaluation_task)
+
 
 evaluation_task_service = EvaluationTaskService()
