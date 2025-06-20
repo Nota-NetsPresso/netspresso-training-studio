@@ -120,39 +120,19 @@ def get_model_benchmark_tasks(
 
 
 @router.get("/{model_id}/evaluations", response_model=EvaluationsResponse)
-def get_model_evaluation_tasks(
+def get_model_evaluations(
     model_id: str = Path(..., description="Model ID to get all related evaluation tasks"),
     db: Session = Depends(get_db),
     token: Token = Depends(get_token),
 ) -> EvaluationsResponse:
     # 1. Get all converted model IDs derived from the trained model
     _, _, converted_model_ids = conversion_task_service._get_conversion_info(db, model_id)
+    all_model_ids = [model_id] + converted_model_ids
 
     # 2. Get all evaluation tasks using original model ID and converted model IDs
-    evaluation_tasks = []
-
-    # Add evaluation tasks directly linked to the original model ID
-    original_model_tasks = evaluation_task_service.get_evaluation_tasks(
+    evaluation_tasks = evaluation_task_service.get_evaluation_tasks_by_ids(
         db=db,
-        token=token.access_token,
-        model_id=model_id
+        model_ids=all_model_ids
     )
-    evaluation_tasks.extend(original_model_tasks)
-
-    # Add evaluation tasks for each converted model
-    for converted_id in converted_model_ids:
-        converted_model_tasks = evaluation_task_service.get_evaluation_tasks(
-            db=db,
-            token=token.access_token,
-            model_id=converted_id
-        )
-        evaluation_tasks.extend(converted_model_tasks)
-
-    # Remove duplicates (based on task_id)
-    unique_tasks = {}
-    for task in evaluation_tasks:
-        unique_tasks[task.task_id] = task
-
-    evaluation_tasks = list(unique_tasks.values())
 
     return EvaluationsResponse(data=evaluation_tasks, result_count=len(evaluation_tasks), total_count=len(evaluation_tasks))
