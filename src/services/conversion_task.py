@@ -132,38 +132,37 @@ class ConversionTaskService:
 
         return model_obj
 
-    def check_conversion_task_exists(self, db: Session, conversion_in: ConversionCreate) -> Optional[ConversionCreatePayload]:
+    def check_conversion_task_exists(
+        self,
+        db: Session,
+        input_model_id: str,
+        framework: TargetFramework,
+        device_name: DeviceName,
+        precision: DataType,
+        software_version: Optional[SoftwareVersion] = None,
+    ) -> Optional[ConversionTask]:
         # Check if a task with the same options already exists
-        existing_tasks = conversion_task_repository.get_all_by_model_id(
-            db=db,
-            model_id=conversion_in.input_model_id
-        )
+        existing_tasks = conversion_task_repository.get_all_by_model_id(db=db, model_id=input_model_id)
 
         # Filter tasks by conversion parameters
         for task in existing_tasks:
-            # Check if this task has the same conversion parameters
             is_same_options = (
-                task.framework == conversion_in.framework and
-                task.device_name == conversion_in.device_name and
-                task.precision == conversion_in.precision
+                task.framework == framework
+                and task.device_name == device_name
+                and task.precision == precision
+                and task.software_version == software_version
             )
 
-            # Software version can be None, handle it separately
-            is_same_software_version = (
-                conversion_in.software_version is None or
-                task.software_version == conversion_in.software_version
-            )
-
-            if is_same_options and is_same_software_version:
-                # If task is in NOT_STARTED, IN_PROGRESS, or COMPLETED state, return it
-                reusable_states = [TaskStatus.NOT_STARTED, TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED]
-                if task.status in reusable_states:
+            if is_same_options:
+                # If a task with the same options exists, check its status
+                if task.status in [TaskStatus.NOT_STARTED, TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS]:
                     logger.info(f"Returning existing conversion task with status {task.status}: {task.task_id}")
-                    return ConversionCreatePayload(task_id=task.task_id)
-
-                # For STOPPED or ERROR, we'll create a new task below
-                logger.info(f"Previous conversion task ended with status {task.status}, creating new task")
-                break
+                    return task
+                elif task.status in [TaskStatus.ERROR, TaskStatus.STOPPED]:
+                    logger.info(f"Previous task ended with status {task.status}. A new task will be created.")
+                    return None  # Allow re-running failed or stopped tasks
+                # For NOT_STARTED, a new task should also be created or the existing one should be re-triggered.
+                # For simplicity, we'll allow creating a new one.
 
         return None
 

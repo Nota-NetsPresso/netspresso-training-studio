@@ -6,6 +6,7 @@ from src.api.deps import api_key_header
 from src.api.v1.schemas.tasks.common.device import SupportedDevicesResponse
 from src.api.v1.schemas.tasks.conversion.conversion_task import (
     ConversionCreate,
+    ConversionCreatePayload,
     ConversionCreateResponse,
     ConversionResponse,
 )
@@ -38,9 +39,17 @@ def create_conversions_task(
     api_key: str = Depends(api_key_header),
 ) -> ConversionCreateResponse:
     try:
-        existing_task = conversion_task_service.check_conversion_task_exists(db=db, conversion_in=request_body)
+        existing_task = conversion_task_service.check_conversion_task_exists(
+            db=db,
+            input_model_id=request_body.input_model_id,
+            framework=request_body.framework,
+            device_name=request_body.device_name,
+            precision=request_body.precision,
+            software_version=request_body.software_version,
+        )
         if existing_task:
-            return ConversionCreateResponse(data=existing_task)
+            payload = ConversionCreatePayload(task_id=existing_task.task_id)
+            return ConversionCreateResponse(data=payload)
 
         conversion_task = conversion_task_service.create_conversion_task(db=db, conversion_in=request_body, api_key=api_key)
         conversion_task_payload = conversion_task_service.start_conversion_task(
