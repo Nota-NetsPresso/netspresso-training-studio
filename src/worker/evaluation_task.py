@@ -196,10 +196,12 @@ def run_multiple_evaluations(
                 evaluation_task.status = TaskStatus.IN_PROGRESS
                 evaluation_task_repository.update(db=db, model=evaluation_task)
 
-                evaluator = Evaluator(api_key=api_key)
-                evaluator.evaluate_model(
+                evaluator = Evaluator()
+                evaluator.evaluate_from_id(
                     db=db,
+                    model_id=evaluation_task.model_id,
                     evaluation_task_id=evaluation_task.task_id,
+                    confidence_score=evaluation_task.confidence_score,
                 )
             except Exception as e:
                 logger.error(f"Error during evaluation for task {task_id}: {str(e)}")
