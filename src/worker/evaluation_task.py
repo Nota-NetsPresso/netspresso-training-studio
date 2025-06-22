@@ -1,9 +1,9 @@
-import logging
 import os
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from celery import chain, signature
+from loguru import logger
 
 from src.api.v1.schemas.tasks.common.dataset import DatasetCreate
 from src.api.v1.schemas.tasks.training.environment import EnvironmentCreate
@@ -13,18 +13,17 @@ from src.core.db.session import SessionLocal, get_db_session
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
 from src.models.base import generate_uuid
-from src.modules.evaluator.evaluator import Evaluator
+from src.modules.evaluator.evaluator import Evaluator, EvaluatorV2
 from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
 from src.modules.trainer.optimizers.optimizer_manager import OptimizerManager
 from src.modules.trainer.schedulers.scheduler_manager import SchedulerManager
 from src.modules.trainer.storage.dataforge import Split
 from src.modules.trainer.trainer import Trainer
 from src.repositories.conversion import conversion_task_repository
-from src.repositories.evaluation import evaluation_dataset_repository
+from src.repositories.evaluation import evaluation_dataset_repository, evaluation_task_repository
 from src.worker.celery_app import celery_app
 
 POLLING_INTERVAL = 30  # seconds
-logger = logging.getLogger(__name__)
 NP_TRAINING_STUDIO_PATH = os.environ.get("NP_TRAINING_STUDIO_PATH", "/np_training_studio")
 
 
@@ -183,212 +182,93 @@ def evaluate_model_task(
 def run_multiple_evaluations(
     self,
     api_key: str,
-    input_model_id: str,
-    dataset_id: str,
-    training_task_id: str,
-    confidence_scores: List[float],
-    gpus: int = 0
-):
-    """Task to sequentially run evaluations for multiple confidence scores
+    evaluation_task_ids: List[str],
+) -> str:
+    """Run evaluation for a model with multiple confidence scores."""
+    with get_db_session() as db:
+        for task_id in evaluation_task_ids:
+            evaluation_task = evaluation_task_repository.get_by_task_id(db=db, task_id=task_id)
+            if not evaluation_task:
+                logger.error(f"Evaluation task with ID {task_id} not found. Skipping.")
+                continue
 
-    Args:
-        api_key: API key for authentication
-        input_model_id: ID of the model to evaluate
-        dataset_id: ID of the dataset to use for evaluation
-        training_task_id: ID of the related training task
-        gpus: Number of GPUs to use
+            try:
+                evaluation_task.status = TaskStatus.IN_PROGRESS
+                evaluation_task_repository.update(db=db, model=evaluation_task)
 
-    Returns:
-        evaluation_task_id: Generated evaluation task ID
-    """
+                evaluator = EvaluatorV2(api_key=api_key)
+                evaluator.evaluate_model(
+                    db=db,
+                    evaluation_task_id=evaluation_task.task_id,
+                )
+            except Exception as e:
+                logger.error(f"Error during evaluation for task {task_id}: {str(e)}")
+                evaluation_task.status = TaskStatus.ERROR
+                evaluation_task.error_detail = str(e)
+                evaluation_task_repository.update(db=db, model=evaluation_task)
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(gpus)
-    logger.info(f"Set CUDA_VISIBLE_DEVICES to {gpus}")
-
-    # List of confidence scores
-
-    # Run individual tasks for each confidence score (instead of chaining)
-    results = []
-    for score in confidence_scores:
-        # Run each task independently
-        evaluation_task_id = generate_uuid(entity="task")
-        _ = evaluate_model_task.apply_async(
-            kwargs={
-                "api_key": api_key,
-                "model_id": input_model_id,
-                "dataset_id": dataset_id,
-                "training_task_id": training_task_id,
-                "evaluation_task_id": evaluation_task_id,
-                "confidence_score": score,
-                "gpus": gpus
-            },
-            evaluation_task_id=evaluation_task_id,
-        )
-        results.append(evaluation_task_id)
-
-    logger.info(f"Evaluation tasks: {results}")
-
-    last_task_id = results[-1] if results else None
-
-    return last_task_id
+        return evaluation_task_ids[0] if evaluation_task_ids else None
 
 
-@celery_app.task(name='poll_and_start_evaluation')
+@celery_app.task(bind=True, name='poll_and_start_evaluation')
 def poll_and_start_evaluation(
     self,
     api_key: str,
     conversion_task_id: str,
-    training_task_id: str,
-    dataset_id: str,
-    confidence_scores: List[float],
-    gpus: int = 0,
-    evaluation_task_id: str = None
+    evaluation_task_ids: List[str],
 ):
-    """Poll conversion task status and start evaluation when complete.
-
-    This task is called after a conversion task and checks its status.
-    If completed, it starts the evaluation task with the converted model.
-
-    Args:
-        conversion_task_id: ID of the conversion task to poll
-        api_key: API key for authentication
-        dataset_id: ID of the dataset to use for evaluation
-        training_task_id: ID of the related training task
-        confidence_scores: List of confidence scores to evaluate with
-        gpus: Number of GPUs to use
-        evaluation_task_id: Optional ID to use for the evaluation task
-
-    Returns:
-        evaluation_task_id: ID of the started evaluation task
-    """
+    """Poll conversion task status and start evaluation when complete."""
     with get_db_session() as db:
         try:
-            logger.info(f"Conversion task ID: {conversion_task_id}")
             conversion_task = conversion_task_repository.get_by_task_id(db=db, task_id=conversion_task_id)
 
             if conversion_task.status == TaskStatus.COMPLETED:
-                model_id = conversion_task.model_id
-                logger.info(f"Conversion completed successfully. Model ID: {model_id}")
-
-                # If there's no generated evaluation task ID, create one
-                if not evaluation_task_id:
-                    evaluation_task_id = generate_uuid(entity="task")
-
-                # The conversion is complete, so run the evaluation as an async task
-                _ = run_multiple_evaluations.apply_async(
-                    kwargs={
-                        "api_key": api_key,
-                        "input_model_id": model_id,
-                        "dataset_id": dataset_id,
-                        "training_task_id": training_task_id,
-                        "confidence_scores": confidence_scores,
-                        "gpus": gpus,
-                    },
-                    task_id=evaluation_task_id,
+                logger.info(f"Conversion completed for task {conversion_task_id}. Starting evaluation tasks.")
+                run_multiple_evaluations.apply_async(
+                    kwargs={"api_key": api_key, "evaluation_task_ids": evaluation_task_ids}
                 )
-
-                logger.info(f"Started evaluation task with ID: {evaluation_task_id}")
-                return evaluation_task_id
+                return {"status": "EvaluationTriggered", "evaluation_task_ids": evaluation_task_ids}
 
             elif conversion_task.status in [TaskStatus.STOPPED, TaskStatus.ERROR]:
-                error_message = conversion_task.error_detail
-                logger.error(f"Conversion failed: {error_message}")
-                raise Exception(f"Conversion failed: {error_message}")
+                error_message = f"Conversion failed with status {conversion_task.status}: {conversion_task.error_detail}"
+                logger.error(error_message)
+                # Fail all linked evaluation tasks
+                for task_id in evaluation_task_ids:
+                    eval_task = evaluation_task_repository.get_by_task_id(db=db, task_id=task_id)
+                    if eval_task:
+                        eval_task.status = TaskStatus.ERROR
+                        eval_task.error_detail = error_message
+                        evaluation_task_repository.update(db=db, model=eval_task)
+                raise Exception(error_message)
             else:
-                # The conversion is still in progress, so schedule this task again
-                logger.info(f"Conversion in progress. Status: {conversion_task.status}. Scheduling poll again.")
-                return poll_and_start_evaluation.apply_async(
-                    args=[
-                        api_key,
-                        conversion_task.task_id,
-                        training_task_id,
-                        dataset_id,
-                        confidence_scores,
-                        gpus,
-                        evaluation_task_id
-                    ],
-                    countdown=POLLING_INTERVAL
-                )
+                logger.info(f"Conversion in progress for {conversion_task_id}. Retrying poll in {POLLING_INTERVAL}s.")
+                self.retry(countdown=POLLING_INTERVAL, max_retries=None)
+
         except Exception as e:
-            logger.error(f"Evaluation task error: {str(e)}")
-            raise e
+            logger.error(f"Polling task failed for conversion {conversion_task_id}: {str(e)}")
+            raise
 
 
-@celery_app.task(name='chain_conversion_and_evaluation')
+@celery_app.task(bind=True, name='chain_conversion_and_evaluation')
 def chain_conversion_and_evaluation(
+    self,
     api_key: str,
-    input_model_id: str,
     conversion_task_id: str,
-    target_framework: str,
-    target_device_name: str,
-    target_data_type: str,
-    target_software_version: str,
-    dataset_id: str,
-    training_task_id: str,
-    confidence_scores: List[float],
-    gpus: int = 0
+    evaluation_task_ids: List[str],
 ):
-    """Chain conversion and evaluation tasks using Celery's chain.
+    """Chain conversion and evaluation tasks using Celery's chain."""
+    logger.info(f"Chaining conversion ({conversion_task_id}) with evaluations ({evaluation_task_ids}).")
 
-    Args:
-        api_key: API key for authentication
-        input_model_path: Path to the input model
-        output_dir: Directory to output the converted model
-        target_framework: Target framework for conversion
-        target_device_name: Target device for conversion
-        target_data_type: Target data type for conversion
-        target_software_version: Target software version for conversion
-        input_layer: Input layer specification
-        dataset_path: Path to the dataset
-        input_model_id: ID of the input model
-        dataset_id: ID of the dataset to use for evaluation
-        training_task_id: ID of the related training task
-        confidence_scores: List of confidence scores to evaluate with
-        gpus: Number of GPUs to use
-
-    Returns:
-        task_id: Chain task ID
-    """
-    # Create an evaluation task ID to be shared across all tasks
-    evaluation_task_id = generate_uuid(entity="task")
-    logger.info(f"Starting conversion and evaluation chain with evaluation ID: {evaluation_task_id}")
-
-    # Configure conversion task
-    conversion_task = signature(
-        'convert_model',
-        kwargs={
-            "api_key": api_key,
-            "input_model_id": input_model_id,
-            "conversion_task_id": conversion_task_id,
-            "target_framework": target_framework,
-            "target_device_name": target_device_name,
-            "target_data_type": target_data_type,
-            "target_software_version": target_software_version,
-        }
-    )
-
-    # Configure polling task - check for conversion completion and start evaluation
+    # The conversion task is already created and started by the service.
+    # We just need to poll for its completion.
     poll_task = signature(
         'poll_and_start_evaluation',
         kwargs={
             "api_key": api_key,
             "conversion_task_id": conversion_task_id,
-            "training_task_id": training_task_id,
-            "dataset_id": dataset_id,
-            "confidence_scores": confidence_scores,
-            "gpus": gpus,
-            "evaluation_task_id": evaluation_task_id,
+            "evaluation_task_ids": evaluation_task_ids,
         }
     )
+    poll_task.apply_async()
 
-    # Create and execute the chain
-    task_chain = chain(
-        conversion_task,
-        poll_task
-    )
-
-    # Execute the chain - results are processed asynchronously
-    task_chain.apply_async()
-
-    # Return the evaluation_task_id immediately
-    return evaluation_task_id
+    return {"chain_started": True, "conversion_task_id": conversion_task_id}

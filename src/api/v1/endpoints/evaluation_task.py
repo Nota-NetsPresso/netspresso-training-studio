@@ -48,6 +48,16 @@ def create_evaluations_task(
     api_key: str = Depends(api_key_header),
 ) -> EvaluationCreateResponse:
     try:
+        existing_task = evaluation_task_service.check_evaluation_task_status(
+            db=db,
+            model_id=request_body.input_model_id,
+            dataset_path=request_body.dataset_path,
+            confidence_score=request_body.confidence_scores,
+        )
+        if existing_task:
+            payload = EvaluationCreatePayload(task_id=existing_task.task_id)
+            return EvaluationCreateResponse(data=payload)
+
         evaluation_task_id = evaluation_task_service.create_evaluation_task(
             db=db, evaluation_in=request_body, api_key=api_key
         )

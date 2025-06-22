@@ -102,51 +102,13 @@ class EvaluationTaskService:
             hardware_types=[HardwareTypePayload(name=hardware_type) for hardware_type in device.hardware_types],
         )
 
-    def _find_existing_conversion_task(
-        self,
-        db: Session,
-        input_model_id: str,
-        target_framework: TargetFramework,
-        target_device_name: DeviceName,
-        target_software_version: Optional[SoftwareVersion] = None,
-        target_data_type: DataType = DataType.FP16
-    ) -> Optional[ConversionTask]:
-        """Find an existing conversion task that matches the given parameters.
-
-        Args:
-            input_model_id: ID of the input model
-            target_framework: Target framework for conversion
-            target_device_name: Target device for conversion
-            target_software_version: Target software version (optional)
-            target_data_type: Target data type/precision
-
-        Returns:
-            The task_id of the matching conversion task, or None if no match found
-        """
-        # Find conversion tasks for the input model
-        conversion_tasks = conversion_task_repository.get_all_by_model_id(
-            db=db,
-            model_id=input_model_id
-        )
-
-        # Filter tasks by the conversion parameters
-        for task in conversion_tasks:
-            if (task.framework == target_framework and
-                task.device_name == target_device_name and
-                task.precision == target_data_type and
-                (target_software_version is None or task.software_version == target_software_version) and
-                task.status == TaskStatus.COMPLETED):
-                return task
-
-        raise ConversionTaskNotFoundException()
-
-    def _check_evaluation_task_status(
+    def check_evaluation_task_status(
         self,
         db: Session,
         model_id: str,
         dataset_path: str,
         confidence_score: float
-    ):
+    ) -> Optional[EvaluationTask]:
         evaluation_task = evaluation_task_repository.get_by_model_dataset_and_confidence(
             db=db,
             model_id=model_id,
@@ -155,150 +117,119 @@ class EvaluationTaskService:
         )
 
         if evaluation_task:
-            if evaluation_task.status == TaskStatus.COMPLETED:
-                logger.warning(f"Evaluation task already completed: {evaluation_task.task_id}")
-                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, task_status=TaskStatus.COMPLETED.value)
-            elif evaluation_task.status == TaskStatus.IN_PROGRESS:
-                logger.warning(f"Evaluation task already in progress: {evaluation_task.task_id}")
-                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, task_status=TaskStatus.IN_PROGRESS.value)
+            if evaluation_task.status in [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS]:
+                logger.warning(f"Evaluation task already exists with status '{evaluation_task.status}': {evaluation_task.task_id}")
+                return evaluation_task
             elif evaluation_task.status == TaskStatus.ERROR:
                 logger.info(f"Retrying failed evaluation task: {evaluation_task.task_id}")
+                return None  # Allow re-running failed tasks
             else:
-                # Other status (NOT_STARTED, STOPPED, etc.)
-                logger.info(f"Using existing evaluation task with ID: {evaluation_task.task_id}")
+                logger.info(f"Existing evaluation task with status '{evaluation_task.status}' found. A new task will be created.")
+                return None
+        return None
 
-    def create_evaluation_task(
+    def _run_evaluation(
         self,
         db: Session,
+        model_id: str,
         evaluation_in: EvaluationCreate,
         api_key: str,
+        confidence_scores: List[float],
     ) -> str:
-        confidence_scores = [0.3, 0.5, 0.6]
+        """Helper to check for existing evaluations, create new task entries, and run the evaluation task."""
+        user_info = user_service.get_user_info(token=api_key)
 
-        if evaluation_in.conversion.framework == EvaluationTargetFramework.ONNX:
-            logger.info("Processing ONNX model evaluation without conversion")
+        all_tasks = {}
 
-            # Get model information
-            model = model_repository.get_by_model_id(
+        for confidence_score in confidence_scores:
+            existing_task = self.check_evaluation_task_status(
                 db=db,
-                model_id=evaluation_in.input_model_id
+                model_id=model_id,
+                dataset_path=evaluation_in.dataset_path,
+                confidence_score=confidence_score
             )
+            if not existing_task:
+                new_task = EvaluationTask(
+                    input_model_id=evaluation_in.input_model_id,
+                    model_id=model_id,
+                    dataset_id=evaluation_in.dataset_path,
+                    user_id=user_info.user_id,
+                    confidence_score=confidence_score,
+                    status=TaskStatus.NOT_STARTED,
+                    training_task_id=evaluation_in.training_task_id,
+                )
+                created_task = evaluation_task_repository.save(db=db, model=new_task)
+                all_tasks[confidence_score] = created_task.task_id
 
-            try:
-                for confidence_score in confidence_scores:
-                    self._check_evaluation_task_status(
-                        db=db,
-                        model_id=model.model_id,
-                        dataset_path=evaluation_in.dataset_path,
-                        confidence_score=confidence_score
-                    )
-            except EvaluationTaskAlreadyExistsException:
-                raise
+        if not all_tasks:
+            logger.info("All evaluation tasks for the given confidence scores already exist.")
+            return all_tasks[confidence_scores[0]].task_id if all_tasks else None
 
-            task_result = run_multiple_evaluations.apply_async(
-                kwargs={
-                    "api_key": api_key,
-                    "input_model_id": model.model_id,
-                    "dataset_id": evaluation_in.dataset_path,
-                    "training_task_id": evaluation_in.training_task_id,
-                    "confidence_scores": confidence_scores,
-                },
-            )
+        task_result = run_multiple_evaluations.apply_async(
+            kwargs={
+                "api_key": api_key,
+                "evaluation_task_ids": all_tasks,
+            },
+        )
+        logger.info(f"Started evaluation for {len(all_tasks)} tasks with Celery task ID: {task_result.task_id}")
+        return all_tasks[confidence_scores[0]].task_id
 
-            evaluation_task_id = task_result.get(timeout=5)
-            logger.info(f"ONNX evaluation task ID: {evaluation_task_id}")
+    def handle_chained_conversion_evaluation(self, db: Session, evaluation_in: EvaluationCreate, api_key: str, confidence_scores: List[float]) -> str:
+        """Handle the case where a new conversion must be created and chained with an evaluation."""
+        logger.info("No existing conversion task found. Chaining conversion and evaluation.")
 
-            return evaluation_task_id
+        conversion_in = ConversionCreate(
+            input_model_id=evaluation_in.input_model_id,
+            framework=evaluation_in.conversion.framework,
+            device_name=evaluation_in.conversion.device_name,
+            precision=evaluation_in.conversion.precision,
+            software_version=evaluation_in.conversion.software_version,
+        )
+        conversion_task = conversion_task_service.create_conversion_task(db=db, conversion_in=conversion_in, api_key=api_key)
+        conversion_task_payload = conversion_task_service.start_conversion_task(
+            conversion_in=conversion_in, conversion_task=conversion_task, api_key=api_key
+        )
+
+        task_result = chain_conversion_and_evaluation.apply_async(
+            kwargs={
+                "api_key": api_key,
+                "input_model_id": evaluation_in.input_model_id,
+                "conversion_task_id": conversion_task_payload.task_id,
+                "target_framework": evaluation_in.conversion.framework,
+                "target_device_name": evaluation_in.conversion.device_name,
+                "target_data_type": evaluation_in.conversion.precision,
+                "target_software_version": evaluation_in.conversion.software_version,
+                "dataset_id": evaluation_in.dataset_path,
+                "training_task_id": evaluation_in.training_task_id,
+                "confidence_scores": confidence_scores,
+            }
+        )
+        logger.info(f"Conversion and evaluation chain started with ID: {task_result.task_id}")
+        return task_result.task_id
+
+    def create_evaluation_task(self, db: Session, evaluation_in: EvaluationCreate, api_key: str) -> str:
+        if evaluation_in.conversion.framework == EvaluationTargetFramework.ONNX:
+            logger.info("Processing ONNX model evaluation without conversion.")
+            model = model_repository.get_by_model_id(db=db, model_id=evaluation_in.input_model_id)
+            return self._run_evaluation(db, model.model_id, evaluation_in, api_key, evaluation_in.confidence_scores)
 
         try:
-            # Check if a conversion task exists
-            conversion_task = self._find_existing_conversion_task(
+            conversion_task = conversion_task_service.check_conversion_task_exists(
                 db=db,
-                input_model_id=evaluation_in.input_model_id,
-                target_framework=evaluation_in.conversion.framework,
-                target_device_name=evaluation_in.conversion.device_name,
-                target_software_version=evaluation_in.conversion.software_version,
-                target_data_type=evaluation_in.conversion.precision
-            )
-
-            # If conversion task exists, start only the evaluation
-            try:
-                for confidence_score in confidence_scores:
-                    self._check_evaluation_task_status(
-                        db=db,
-                        model_id=conversion_task.model_id,
-                        dataset_path=evaluation_in.dataset_path,
-                        confidence_score=confidence_score
-                    )
-            except EvaluationTaskAlreadyExistsException:
-                raise
-
-            task_result = run_multiple_evaluations.apply_async(
-                kwargs={
-                    "api_key": api_key,
-                    "input_model_id": conversion_task.model_id,
-                    "dataset_id": evaluation_in.dataset_path,
-                    "training_task_id": evaluation_in.training_task_id,
-                    "confidence_scores": confidence_scores,
-                },
-            )
-
-            evaluation_task_id = task_result.get(timeout=5)
-            logger.info(f"Evaluation task ID: {evaluation_task_id}")
-
-            return evaluation_task_id
-
-        except ConversionTaskNotFoundException:
-            # If no conversion task exists, chain conversion and evaluation together
-            logger.info("No existing conversion task found. Creating a new conversion task and chaining with evaluation.")
-
-            # Get model information
-            model = model_repository.get_by_model_id(
-                db=db,
-                model_id=evaluation_in.input_model_id
-            )
-
-            if not model:
-                raise Exception(f"Input model with ID {evaluation_in.input_model_id} not found")
-
-            conversion_in = ConversionCreate(
                 input_model_id=evaluation_in.input_model_id,
                 framework=evaluation_in.conversion.framework,
                 device_name=evaluation_in.conversion.device_name,
                 precision=evaluation_in.conversion.precision,
                 software_version=evaluation_in.conversion.software_version,
             )
-            conversion_task = conversion_task_service.create_conversion_task(
-                db=db,
-                conversion_in=conversion_in,
-                api_key=api_key,
-            )
-            conversion_task_payload = conversion_task_service.start_conversion_task(
-                conversion_in=conversion_in,
-                conversion_task=conversion_task,
-                api_key=api_key,
-            )
+            if not conversion_task:
+                raise ConversionTaskNotFoundException()
 
-            task_result = chain_conversion_and_evaluation.apply_async(
-                kwargs={
-                    "api_key": api_key,
-                    "input_model_id": evaluation_in.input_model_id,
-                    "conversion_task_id": conversion_task_payload.task_id,
-                    "target_framework": evaluation_in.conversion.framework,
-                    "target_device_name": evaluation_in.conversion.device_name,
-                    "target_data_type": evaluation_in.conversion.precision,
-                    "target_software_version": evaluation_in.conversion.software_version,
-                    "dataset_id": evaluation_in.dataset_path,
-                    "training_task_id": evaluation_in.training_task_id,
-                    "confidence_scores": confidence_scores,
-                }
-            )
+            logger.info(f"Found existing conversion task {conversion_task.task_id}. Starting evaluation.")
+            return self._run_evaluation(db, conversion_task.model_id, evaluation_in, api_key, evaluation_in.confidence_scores)
 
-            # Get the starting task ID of the chain
-            evaluation_task_id = task_result.get(timeout=5)
-            logger.info(f"Conversion and evaluation chain started with ID: {evaluation_task_id}")
-
-            return evaluation_task_id
+        except ConversionTaskNotFoundException:
+            return self._handle_chained_conversion_evaluation(db, evaluation_in, api_key, evaluation_in.confidence_scores)
 
     def get_evaluation_tasks(
         self,

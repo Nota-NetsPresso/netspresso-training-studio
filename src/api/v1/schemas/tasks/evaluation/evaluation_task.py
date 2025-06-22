@@ -15,6 +15,7 @@ class EvaluationCreate(BaseModel):
 
     dataset_path: str = Field(description="Dataset path")
     storage_location: StorageLocation = Field(description="Storage location")
+    confidence_scores: Optional[List[float]] = Field(default=[0.3, 0.5, 0.6], description="Confidence score")
 
     conversion: ConversionForEvaluationCreate
 
