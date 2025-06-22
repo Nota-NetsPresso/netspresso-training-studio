@@ -13,7 +13,7 @@ from src.core.db.session import SessionLocal, get_db_session
 from src.enums.task import TaskStatus
 from src.enums.training import StorageLocation
 from src.models.base import generate_uuid
-from src.modules.evaluator.evaluator import Evaluator, EvaluatorV2
+from src.modules.evaluator.evaluator import Evaluator
 from src.modules.trainer.augmentations.augmentation import Normalize, Pad, Resize, ToTensor
 from src.modules.trainer.optimizers.optimizer_manager import OptimizerManager
 from src.modules.trainer.schedulers.scheduler_manager import SchedulerManager
@@ -196,7 +196,7 @@ def run_multiple_evaluations(
                 evaluation_task.status = TaskStatus.IN_PROGRESS
                 evaluation_task_repository.update(db=db, model=evaluation_task)
 
-                evaluator = EvaluatorV2(api_key=api_key)
+                evaluator = Evaluator(api_key=api_key)
                 evaluator.evaluate_model(
                     db=db,
                     evaluation_task_id=evaluation_task.task_id,
