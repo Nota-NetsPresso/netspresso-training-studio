@@ -151,7 +151,6 @@ class EvaluationTaskService:
             if not existing_task:
                 new_task = EvaluationTask(
                     input_model_id=evaluation_in.input_model_id,
-                    model_id=model_id,
                     dataset_id=evaluation_in.dataset_path,
                     user_id=user_info.user_id,
                     confidence_score=confidence_score,

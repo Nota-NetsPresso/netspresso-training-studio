@@ -368,7 +368,6 @@ def train_model(
                     for score in DEFAULT_CONFIDENCE_SCORES:
                         new_task = EvaluationTask(
                             input_model_id=training_task.model_id,
-                            model_id=training_task.model_id,
                             dataset_id=training_in.dataset.test_path,
                             user_id=training_task.user_id,
                             confidence_score=score,
@@ -398,7 +397,6 @@ def train_model(
                     for score in DEFAULT_CONFIDENCE_SCORES:
                         new_task = EvaluationTask(
                             input_model_id=training_task.model_id,
-                            model_id=conversion_task.model_id,
                             dataset_id=training_in.dataset.test_path,
                             user_id=training_task.user_id,
                             confidence_score=score,
