@@ -199,7 +199,7 @@ def run_multiple_evaluations(
                 evaluator = Evaluator()
                 evaluator.evaluate_from_id(
                     db=db,
-                    model_id=evaluation_task.model_id,
+                    model_id=evaluation_task.input_model_id,
                     evaluation_task_id=evaluation_task.task_id,
                     confidence_score=evaluation_task.confidence_score,
                 )

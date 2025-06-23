@@ -139,7 +139,7 @@ class EvaluationTaskService:
         """Helper to check for existing evaluations, create new task entries, and run the evaluation task."""
         user_info = user_service.get_user_info(token=api_key)
 
-        all_tasks = {}
+        all_tasks = []
 
         for confidence_score in confidence_scores:
             existing_task = self.check_evaluation_task_status(
@@ -159,20 +159,20 @@ class EvaluationTaskService:
                     training_task_id=evaluation_in.training_task_id,
                 )
                 created_task = evaluation_task_repository.save(db=db, model=new_task)
-                all_tasks[confidence_score] = created_task.task_id
+                all_tasks.append(created_task)
 
         if not all_tasks:
             logger.info("All evaluation tasks for the given confidence scores already exist.")
-            return all_tasks[confidence_scores[0]].task_id if all_tasks else None
+            return all_tasks[0].task_id if all_tasks else None
 
         task_result = run_multiple_evaluations.apply_async(
             kwargs={
                 "api_key": api_key,
-                "evaluation_task_ids": all_tasks,
+                "evaluation_task_ids": [task.task_id for task in all_tasks],
             },
         )
         logger.info(f"Started evaluation for {len(all_tasks)} tasks with Celery task ID: {task_result.task_id}")
-        return all_tasks[confidence_scores[0]].task_id
+        return all_tasks[0].task_id
 
     def handle_chained_conversion_evaluation(self, db: Session, evaluation_in: EvaluationCreate, api_key: str, confidence_scores: List[float]) -> str:
         """Handle the case where a new conversion must be created and chained with an evaluation."""
