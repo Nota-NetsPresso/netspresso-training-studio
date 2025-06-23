@@ -320,7 +320,6 @@ def trigger_conversion_evaluation(
 def train_model(
     self,
     training_task_id: str,
-    api_key: str,
     training_in: Dict[str, Any],
     unique_model_name: str,
     dataset_path: str,
@@ -361,7 +360,6 @@ def train_model(
         if training_in.dataset.test_path and training_in.conversion:
             try:
                 logger.info("Starting post-training chain for conversion and evaluation")
-                user_info = user_service.get_user_info(token=api_key)
                 from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
 
                 if training_in.conversion.framework == EvaluationTargetFramework.ONNX:
@@ -372,7 +370,7 @@ def train_model(
                             input_model_id=training_task.model_id,
                             model_id=training_task.model_id,
                             dataset_id=training_in.dataset.test_path,
-                            user_id=user_info.user_id,
+                            user_id=training_task.user_id,
                             confidence_score=score,
                             status=TaskStatus.NOT_STARTED,
                             training_task_id=training_task.task_id,
@@ -381,7 +379,7 @@ def train_model(
 
                     evaluation_task_ids = [task.task_id for task in evaluation_tasks]
                     run_multiple_evaluations.apply_async(
-                        kwargs={"api_key": api_key, "evaluation_task_ids": evaluation_task_ids}
+                        kwargs={"evaluation_task_ids": evaluation_task_ids}
                     )
                 else:
                     logger.info("TFLite model detected - starting conversion and evaluation chain.")
@@ -393,7 +391,7 @@ def train_model(
                         software_version=training_in.conversion.software_version,
                     )
                     conversion_task = conversion_task_service.create_conversion_task(
-                        db=db, conversion_in=conversion_in, api_key=api_key
+                        db=db, conversion_in=conversion_in, api_key=""
                     )
 
                     evaluation_tasks = []
@@ -402,7 +400,7 @@ def train_model(
                             input_model_id=training_task.model_id,
                             model_id=conversion_task.model_id,
                             dataset_id=training_in.dataset.test_path,
-                            user_id=user_info.user_id,
+                            user_id=training_task.user_id,
                             confidence_score=score,
                             status=TaskStatus.NOT_STARTED,
                             training_task_id=training_task.task_id,
@@ -413,7 +411,6 @@ def train_model(
                     evaluation_task_ids = [task.task_id for task in evaluation_tasks]
                     chain_conversion_and_evaluation.apply_async(
                         kwargs={
-                            "api_key": api_key,
                             "conversion_task_id": conversion_task.task_id,
                             "evaluation_task_ids": evaluation_task_ids,
                         }

@@ -167,7 +167,6 @@ class EvaluationTaskService:
 
         task_result = run_multiple_evaluations.apply_async(
             kwargs={
-                "api_key": api_key,
                 "evaluation_task_ids": [task.task_id for task in all_tasks],
             },
         )
@@ -192,7 +191,6 @@ class EvaluationTaskService:
 
         task_result = chain_conversion_and_evaluation.apply_async(
             kwargs={
-                "api_key": api_key,
                 "input_model_id": evaluation_in.input_model_id,
                 "conversion_task_id": conversion_task_payload.task_id,
                 "target_framework": evaluation_in.conversion.framework,
@@ -229,7 +227,7 @@ class EvaluationTaskService:
             return self._run_evaluation(db, conversion_task.model_id, evaluation_in, api_key, evaluation_in.confidence_scores)
 
         except ConversionTaskNotFoundException:
-            return self._handle_chained_conversion_evaluation(db, evaluation_in, api_key, evaluation_in.confidence_scores)
+            return self.handle_chained_conversion_evaluation(db, evaluation_in, api_key, evaluation_in.confidence_scores)
 
     def get_evaluation_tasks(
         self,

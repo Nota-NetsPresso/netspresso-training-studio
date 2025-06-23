@@ -312,7 +312,6 @@ class TrainingTaskService:
         # Prepare worker task parameters
         worker_params = {
             "training_task_id": training_task.task_id,
-            "api_key": api_key,
             "training_in": training_in.model_dump(),
             "unique_model_name": training_task.model.name,
             "training_type": training_task.training_type,

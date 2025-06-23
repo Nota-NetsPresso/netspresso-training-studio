@@ -181,7 +181,6 @@ def evaluate_model_task(
 @celery_app.task(bind=True, name='run_multiple_evaluations')
 def run_multiple_evaluations(
     self,
-    api_key: str,
     evaluation_task_ids: List[str],
 ) -> str:
     """Run evaluation for a model with multiple confidence scores."""
@@ -215,7 +214,6 @@ def run_multiple_evaluations(
 @celery_app.task(bind=True, name='poll_and_start_evaluation')
 def poll_and_start_evaluation(
     self,
-    api_key: str,
     conversion_task_id: str,
     evaluation_task_ids: List[str],
 ):
@@ -227,7 +225,7 @@ def poll_and_start_evaluation(
             if conversion_task.status == TaskStatus.COMPLETED:
                 logger.info(f"Conversion completed for task {conversion_task_id}. Starting evaluation tasks.")
                 run_multiple_evaluations.apply_async(
-                    kwargs={"api_key": api_key, "evaluation_task_ids": evaluation_task_ids}
+                    kwargs={"evaluation_task_ids": evaluation_task_ids}
                 )
                 return {"status": "EvaluationTriggered", "evaluation_task_ids": evaluation_task_ids}
 
@@ -254,7 +252,6 @@ def poll_and_start_evaluation(
 @celery_app.task(bind=True, name='chain_conversion_and_evaluation')
 def chain_conversion_and_evaluation(
     self,
-    api_key: str,
     conversion_task_id: str,
     evaluation_task_ids: List[str],
 ):
@@ -266,7 +263,6 @@ def chain_conversion_and_evaluation(
     poll_task = signature(
         'poll_and_start_evaluation',
         kwargs={
-            "api_key": api_key,
             "conversion_task_id": conversion_task_id,
             "evaluation_task_ids": evaluation_task_ids,
         }
