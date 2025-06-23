@@ -205,10 +205,7 @@ class EvaluationTaskService:
                 },
             )
 
-            evaluation_task_id = task_result.get(timeout=5)
-            logger.info(f"ONNX evaluation task ID: {evaluation_task_id}")
-
-            return evaluation_task_id
+            return ""
 
         try:
             # Check if a conversion task exists
@@ -243,10 +240,7 @@ class EvaluationTaskService:
                 },
             )
 
-            evaluation_task_id = task_result.get(timeout=5)
-            logger.info(f"Evaluation task ID: {evaluation_task_id}")
-
-            return evaluation_task_id
+            return ""
 
         except ConversionTaskNotFoundException:
             # If no conversion task exists, chain conversion and evaluation together
@@ -295,10 +289,8 @@ class EvaluationTaskService:
             )
 
             # Get the starting task ID of the chain
-            evaluation_task_id = task_result.get(timeout=5)
-            logger.info(f"Conversion and evaluation chain started with ID: {evaluation_task_id}")
 
-            return evaluation_task_id
+            return ""
 
     def get_evaluation_tasks(
         self,

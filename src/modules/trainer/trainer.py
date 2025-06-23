@@ -743,7 +743,8 @@ class Trainer:
             training_task.status = TaskStatus.ERROR
             training_task.error_detail = FailedTrainingException(error_log=error_msg).detail
             training_task = training_task_repository.update(db=db, model=training_task)
-            return training_task
+
+        return training_task
 
     def _upload_file_with_retry(self, local_path, object_path, file_type, max_retries=3, retry_delay=5):
         """Execute file upload with retry mechanism."""
