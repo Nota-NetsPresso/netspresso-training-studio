@@ -370,7 +370,7 @@ class EvaluationTaskService:
 
         for confidence_score in self.confidence_scores:
             evaluation_task = EvaluationTask(
-                dataset_id=dataset_path,
+                # dataset_id=dataset_path,
                 input_model_id=model_id,
                 training_task_id=training_task_id,
                 conversion_task_id=conversion_task_id,
