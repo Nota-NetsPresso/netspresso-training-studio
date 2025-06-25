@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -380,6 +381,7 @@ class EvaluationTaskService:
             )
             evaluation_task = evaluation_task_repository.save(db=db, model=evaluation_task)
             evaluation_task_ids.append(evaluation_task.task_id)
+            time.sleep(1)
 
         return evaluation_task_ids
 
