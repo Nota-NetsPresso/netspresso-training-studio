@@ -80,55 +80,30 @@ class Evaluator:
         confidence_score: float,
         gpus: int = 0,
     ) -> str:
-        if self.trainer is None:
-            raise ValueError("Trainer is required for evaluation")
-
-        logger.info(f"Starting evaluation for model {model_id} with confidence score {confidence_score}")
-
-        evaluation_task = None  # Initialize so it can be safely referenced in except block
-
         try:
+            logger.info(f"Starting evaluation for model {model_id} with confidence score {confidence_score}")
+
             output_dir = tempfile.mkdtemp(prefix="netspresso_evaluate_")
 
-            # 1. Get model information
             input_model = model_repository.get_by_model_id(db=db, model_id=model_id)
-            if not input_model:
-                raise Exception(f"Model with ID {model_id} not found")
 
-            # 2. Check if this is a direct ONNX model or converted model
+            local_path = self._download_model(input_model, output_dir)
+
             conversion_task = None
             try:
                 logger.info(f"Getting conversion task for model {model_id}")
                 conversion_task = conversion_task_repository.get_by_model_id(db=db, model_id=model_id)
-            except Exception as e:
-                logger.error(f"Error getting conversion task for model {model_id}: {e}")
+            except Exception:
                 logger.info(f"No conversion task found for model {model_id}. Treating as direct ONNX model.")
-                # No conversion task for ONNX models
 
             if conversion_task is None:
                 # For ONNX models, model_id is the same as training_task's output_model_id
-                try:
-                    # Get training task based on model type
-                    if input_model.type == ModelType.COMPRESSED_MODEL:
-                        compression_task = compression_task_repository.get_by_model_id(db=db, model_id=input_model.model_id)
-                        training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
-                    else:
-                        training_task = training_task_repository.get_by_model_id(db=db, model_id=input_model.model_id)
-
-                    if training_task is None:
-                        raise Exception(f"No training task found for model {model_id}")
-                except TrainingTaskNotFoundException:
-                    try:
-                        # Last attempt: query directly by model_id
-                        training_task = training_task_repository.get_by_model_id(db=db, model_id=model_id)
-                        if training_task is None:
-                            raise Exception(f"No training task found for model {model_id}")
-                    except TrainingTaskNotFoundException:
-                        raise Exception(f"No training task found for model {model_id}")
-
-                # 3. Check training task is completed
-                if training_task.status != TaskStatus.COMPLETED:
-                    raise NotCompletedTrainingException(training_task_id=training_task.task_id)
+                # Get training task based on model type
+                if input_model.type == ModelType.COMPRESSED_MODEL:
+                    compression_task = compression_task_repository.get_by_model_id(db=db, model_id=input_model.model_id)
+                    training_task = training_task_repository.get_by_model_id(db=db, model_id=compression_task.input_model_id)
+                else:
+                    training_task = training_task_repository.get_by_model_id(db=db, model_id=input_model.model_id)
 
             else:
                 conversion_task_input_model = model_repository.get_by_model_id(db=db, model_id=conversion_task.input_model_id)
@@ -138,41 +113,21 @@ class Evaluator:
                 else:
                     training_task = training_task_repository.get_by_model_id(db=db, model_id=conversion_task_input_model.model_id)
 
-                # 3. Check training task is completed
-                if training_task.status != TaskStatus.COMPLETED:
-                    raise NotCompletedTrainingException(training_task_id=training_task.task_id)
-
-                # 4. Check conversion framework is supported
                 if conversion_task.framework not in [EvaluationTargetFramework.TENSORFLOW_LITE, EvaluationTargetFramework.ONNX]:
                     raise UnsupportedEvaluationFrameworkException(framework=conversion_task.framework)
 
+            if training_task.status != TaskStatus.COMPLETED:
+                raise NotCompletedTrainingException(training_task_id=training_task.task_id)
+
             # Create task with DB session
+            evaluation_task = evaluation_task_repository.get_by_task_id(db=db, task_id=evaluation_task_id)
             if self.trainer.test_dataset_id:
-                evaluation_task = EvaluationTask(
-                    task_id=evaluation_task_id,
-                    dataset_id=self.trainer.test_dataset_id,
-                    input_model_id=model_id,
-                    training_task_id=training_task.task_id,
-                    conversion_task_id=conversion_task.task_id if conversion_task else None,
-                    confidence_score=confidence_score,
-                    status=TaskStatus.NOT_STARTED,
-                    user_id=input_model.user_id,
-                )
+                evaluation_task.dataset_id = self.trainer.test_dataset_id
             if self.trainer.test_dataset:
-                evaluation_task = EvaluationTask(
-                    task_id=evaluation_task_id,
-                    dataset_id=self.trainer.test_dataset.dataset_id,
-                    input_model_id=model_id,
-                    training_task_id=training_task.task_id,
-                    conversion_task_id=conversion_task.task_id if conversion_task else None,
-                    confidence_score=confidence_score,
-                    status=TaskStatus.NOT_STARTED,
-                    user_id=input_model.user_id,
-                )
+                evaluation_task.dataset_id = self.trainer.test_dataset.dataset_id
+
             evaluation_task = evaluation_task_repository.save(db=db, model=evaluation_task)
             logger.info(f"Created new evaluation task with ID: {evaluation_task.task_id}")
-
-            local_path = self._download_model(input_model, output_dir)
 
             # Update status - Pass DB session
             evaluation_task.status = TaskStatus.IN_PROGRESS
@@ -246,7 +201,7 @@ class Evaluator:
                     logger.error(f"Failed to update task status: {str(inner_e)}")
             raise e
 
-    def _download_model(self, input_model: Model, output_dir: str) -> str:
+    def _download_model(self, input_model: Model, output_dir: str) -> Path:
         download_dir = Path(output_dir) / "input_model"
         download_dir.mkdir(parents=True, exist_ok=True)
 
@@ -267,4 +222,4 @@ class Evaluator:
         )
         logger.info(f"Downloaded input model from Zenko: {local_path}")
 
-        return local_path.as_posix()
+        return local_path

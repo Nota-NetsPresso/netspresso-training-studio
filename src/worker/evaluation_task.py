@@ -185,6 +185,7 @@ def run_multiple_evaluations(
     input_model_id: str,
     dataset_id: str,
     training_task_id: str,
+    evaluation_task_ids: List[str],
     confidence_scores: List[float],
     gpus: int = 0
 ):
@@ -208,9 +209,8 @@ def run_multiple_evaluations(
 
     # Run individual tasks for each confidence score (instead of chaining)
     results = []
-    for score in confidence_scores:
+    for score, evaluation_task_id in zip(confidence_scores, evaluation_task_ids):
         # Run each task independently
-        evaluation_task_id = generate_uuid(entity="task")
         _ = evaluate_model_task.apply_async(
             kwargs={
                 "api_key": api_key,
@@ -239,9 +239,9 @@ def poll_and_start_evaluation(
     conversion_task_id: str,
     training_task_id: str,
     dataset_id: str,
+    evaluation_task_ids: List[str],
     confidence_scores: List[float],
     gpus: int = 0,
-    evaluation_task_id: str = None
 ):
     """Poll conversion task status and start evaluation when complete.
 
@@ -269,10 +269,6 @@ def poll_and_start_evaluation(
                 model_id = conversion_task.model_id
                 logger.info(f"Conversion completed successfully. Model ID: {model_id}")
 
-                # If there's no generated evaluation task ID, create one
-                if not evaluation_task_id:
-                    evaluation_task_id = generate_uuid(entity="task")
-
                 # The conversion is complete, so run the evaluation as an async task
                 _ = run_multiple_evaluations.apply_async(
                     kwargs={
@@ -280,14 +276,14 @@ def poll_and_start_evaluation(
                         "input_model_id": model_id,
                         "dataset_id": dataset_id,
                         "training_task_id": training_task_id,
+                        "evaluation_task_ids": evaluation_task_ids,
                         "confidence_scores": confidence_scores,
                         "gpus": gpus,
                     },
-                    task_id=evaluation_task_id,
                 )
 
-                logger.info(f"Started evaluation task with ID: {evaluation_task_id}")
-                return evaluation_task_id
+                logger.info(f"Started evaluation task with ID: {evaluation_task_ids}")
+                return evaluation_task_ids
 
             elif conversion_task.status in [TaskStatus.STOPPED, TaskStatus.ERROR]:
                 error_message = conversion_task.error_detail
@@ -302,9 +298,9 @@ def poll_and_start_evaluation(
                         conversion_task.task_id,
                         training_task_id,
                         dataset_id,
+                        evaluation_task_ids,
                         confidence_scores,
                         gpus,
-                        evaluation_task_id
                     ],
                     countdown=POLLING_INTERVAL
                 )
@@ -324,6 +320,7 @@ def chain_conversion_and_evaluation(
     target_software_version: str,
     dataset_id: str,
     training_task_id: str,
+    evaluation_task_ids: List[str],
     confidence_scores: List[float],
     gpus: int = 0
 ):
@@ -348,23 +345,7 @@ def chain_conversion_and_evaluation(
     Returns:
         task_id: Chain task ID
     """
-    # Create an evaluation task ID to be shared across all tasks
-    evaluation_task_id = generate_uuid(entity="task")
-    logger.info(f"Starting conversion and evaluation chain with evaluation ID: {evaluation_task_id}")
-
-    # Configure conversion task
-    conversion_task = signature(
-        'convert_model',
-        kwargs={
-            "api_key": api_key,
-            "input_model_id": input_model_id,
-            "conversion_task_id": conversion_task_id,
-            "target_framework": target_framework,
-            "target_device_name": target_device_name,
-            "target_data_type": target_data_type,
-            "target_software_version": target_software_version,
-        }
-    )
+    logger.info(f"Starting conversion and evaluation chain with evaluation ID: {evaluation_task_ids}")
 
     # Configure polling task - check for conversion completion and start evaluation
     poll_task = signature(
@@ -374,20 +355,17 @@ def chain_conversion_and_evaluation(
             "conversion_task_id": conversion_task_id,
             "training_task_id": training_task_id,
             "dataset_id": dataset_id,
+            "evaluation_task_ids": evaluation_task_ids,
             "confidence_scores": confidence_scores,
             "gpus": gpus,
-            "evaluation_task_id": evaluation_task_id,
         }
     )
 
     # Create and execute the chain
-    task_chain = chain(
-        conversion_task,
-        poll_task
-    )
+    task_chain = chain(poll_task)
 
     # Execute the chain - results are processed asynchronously
     task_chain.apply_async()
 
-    # Return the evaluation_task_id immediately
-    return evaluation_task_id
+    # Return the evaluation_task_ids immediately
+    return evaluation_task_ids
