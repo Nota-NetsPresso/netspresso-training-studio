@@ -72,76 +72,20 @@ class Evaluator:
         except Exception as e:
             raise e
 
-    def evaluate_from_id(
+    def evaluate_model(
         self,
+        db: Session,
         model_id: str,
+        evaluation_task_id: str,
         confidence_score: float,
         gpus: int = 0,
-        evaluation_task_id: Optional[str] = None,
-        db: Optional[Session] = None,
     ) -> str:
         if self.trainer is None:
             raise ValueError("Trainer is required for evaluation")
 
         logger.info(f"Starting evaluation for model {model_id} with confidence score {confidence_score}")
 
-        # Session management
-        external_session = db is not None  # Check if a session was provided externally
-
-        # Use with block for internal session management if no external session is provided
-        if external_session:
-            return self._evaluate_with_session(
-                db=db,
-                model_id=model_id,
-                confidence_score=confidence_score,
-                gpus=gpus,
-                evaluation_task_id=evaluation_task_id,
-            )
-        else:
-            with get_db_session() as db:
-                return self._evaluate_with_session(
-                    db=db,
-                    model_id=model_id,
-                    confidence_score=confidence_score,
-                    gpus=gpus,
-                    evaluation_task_id=evaluation_task_id,
-                )
-
-    def _check_evaluation_task_status(self, db: Session, model_id: str, dataset_id: str, confidence_score: float):
-        evaluation_task = evaluation_task_repository.get_by_model_dataset_and_confidence(
-            db=db,
-            model_id=model_id,
-            dataset_id=dataset_id,
-            confidence_score=confidence_score
-        )
-
-        if evaluation_task:
-            if evaluation_task.status == TaskStatus.COMPLETED:
-                logger.warning(f"Evaluation task already completed: {evaluation_task.task_id}")
-                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, status=TaskStatus.COMPLETED)
-            elif evaluation_task.status == TaskStatus.IN_PROGRESS:
-                logger.warning(f"Evaluation task already in progress: {evaluation_task.task_id}")
-                raise EvaluationTaskAlreadyExistsException(task_id=evaluation_task.task_id, status=TaskStatus.IN_PROGRESS)
-            elif evaluation_task.status == TaskStatus.ERROR:
-                logger.info(f"Retrying failed evaluation task: {evaluation_task.task_id}")
-            else:
-                # Other status (NOT_STARTED, STOPPED, etc.)
-                logger.info(f"Using existing evaluation task with ID: {evaluation_task.task_id}")
-
-    def _evaluate_with_session(
-        self,
-        db: Session,
-        model_id: str,
-        confidence_score: float,
-        gpus: int = 0,
-        evaluation_task_id: Optional[str] = None,
-    ) -> str:
         evaluation_task = None  # Initialize so it can be safely referenced in except block
-
-        # try:
-        #     self._check_evaluation_task_status(db=db, model_id=model_id, dataset_id=dataset_id, confidence_score=confidence_score)
-        # except EvaluationTaskAlreadyExistsException as e:
-        #     raise e
 
         try:
             output_dir = tempfile.mkdtemp(prefix="netspresso_evaluate_")
@@ -203,32 +147,21 @@ class Evaluator:
                     raise UnsupportedEvaluationFrameworkException(framework=conversion_task.framework)
 
             # Create task with DB session
-            if evaluation_task_id:
-                if self.trainer.test_dataset_id:
-                    evaluation_task = EvaluationTask(
-                        task_id=evaluation_task_id,
-                        dataset_id=self.trainer.test_dataset_id,
-                        input_model_id=model_id,
-                        training_task_id=training_task.task_id,
-                        conversion_task_id=conversion_task.task_id if conversion_task else None,
-                        confidence_score=confidence_score,
-                        status=TaskStatus.NOT_STARTED,
-                        user_id=input_model.user_id,
-                    )
-                if self.trainer.test_dataset:
-                    evaluation_task = EvaluationTask(
-                        task_id=evaluation_task_id,
-                        dataset_id=self.trainer.test_dataset.dataset_id,
-                        input_model_id=model_id,
-                        training_task_id=training_task.task_id,
-                        conversion_task_id=conversion_task.task_id if conversion_task else None,
-                        confidence_score=confidence_score,
-                        status=TaskStatus.NOT_STARTED,
-                        user_id=input_model.user_id,
-                    )
-            else:
+            if self.trainer.test_dataset_id:
                 evaluation_task = EvaluationTask(
-                    dataset_id=self.trainer.test_dataset,
+                    task_id=evaluation_task_id,
+                    dataset_id=self.trainer.test_dataset_id,
+                    input_model_id=model_id,
+                    training_task_id=training_task.task_id,
+                    conversion_task_id=conversion_task.task_id if conversion_task else None,
+                    confidence_score=confidence_score,
+                    status=TaskStatus.NOT_STARTED,
+                    user_id=input_model.user_id,
+                )
+            if self.trainer.test_dataset:
+                evaluation_task = EvaluationTask(
+                    task_id=evaluation_task_id,
+                    dataset_id=self.trainer.test_dataset.dataset_id,
                     input_model_id=model_id,
                     training_task_id=training_task.task_id,
                     conversion_task_id=conversion_task.task_id if conversion_task else None,
