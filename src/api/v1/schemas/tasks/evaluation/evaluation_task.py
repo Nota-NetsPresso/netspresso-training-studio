@@ -43,7 +43,7 @@ class EvaluationPayload(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     task_id: str
-    dataset_id: str
+    dataset_id: Optional[str] = None
     is_dataset_deleted: bool
 
     confidence_score: float
