@@ -109,9 +109,11 @@ def evaluate_model_task(
                 evaluation_dataset = evaluation_dataset_repository.get_by_dataset_path(db=db, dataset_path=test_dataset_path)
                 logger.info(f"evaluation_dataset: {evaluation_dataset}")
                 if evaluation_dataset:
+                    logger.info(f"evaluation_dataset.dataset_id: {evaluation_dataset.dataset_id}")
                     trainer.set_test_dataset_no_create(test_dataset_path, evaluation_dataset.name)
                     trainer.test_dataset_id = evaluation_dataset.dataset_id
                 else:
+                    logger.info(f"No evaluation dataset found for path: {test_dataset_path}")
                     trainer.set_test_dataset(str(test_dataset_path), test_dataset_path.name)
 
             else:  # StorageLocation.STORAGE
