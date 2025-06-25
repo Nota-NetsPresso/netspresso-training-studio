@@ -30,5 +30,8 @@ class Settings(BaseSettings):
 
     NP_TRAINING_STUDIO_PATH: str = os.environ.get("NP_TRAINING_STUDIO_PATH", "/np_training_studio")
 
+    # Evaluation settings
+    EVALUATION_CONFIDENCE_SCORES = [0.3, 0.5, 0.6]
+
 
 settings = Settings()
