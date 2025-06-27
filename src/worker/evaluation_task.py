@@ -236,7 +236,6 @@ def run_multiple_evaluations(
 
 @celery_app.task(name='poll_and_start_evaluation')
 def poll_and_start_evaluation(
-    self,
     api_key: str,
     conversion_task_id: str,
     training_task_id: str,
