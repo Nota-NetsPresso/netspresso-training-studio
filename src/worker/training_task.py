@@ -21,6 +21,7 @@ from src.repositories.model import model_repository
 from src.repositories.project import project_repository
 from src.repositories.training import training_task_repository
 from src.services.conversion_task import conversion_task_service
+from src.services.evaluation_task import evaluation_task_service
 from src.worker.celery_app import celery_app
 from src.zenko.storage_handler import ObjectStorageHandler
 
@@ -267,52 +268,6 @@ def get_model_paths(training_task_id: str) -> Optional[Tuple[Path, Path]]:
         return input_model_path, output_dir
 
 
-def trigger_conversion_evaluation(
-    api_key: str,
-    input_model_path: Path,
-    output_dir: Path,
-    model_id: str,
-    training_in: TrainingCreate,
-    training_task_id: str
-):
-    """Trigger the conversion and evaluation chain."""
-    from src.worker.evaluation_task import chain_conversion_and_evaluation, run_multiple_evaluations
-
-    conversion_option = training_in.conversion
-
-    # For ONNX models, skip conversion and run evaluation directly
-    if conversion_option.framework == EvaluationTargetFramework.ONNX:
-        logger.info("ONNX model detected - skipping conversion and running evaluation directly")
-
-        # Evaluate ONNX model directly
-        _ = run_multiple_evaluations.apply_async(
-            kwargs={
-                "api_key": api_key,
-                "input_model_id": model_id,  # Use the already trained ONNX model ID
-                "dataset_id": training_in.dataset.test_path,
-                "training_task_id": training_task_id,
-                "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
-            }
-        )
-    else:
-        # Original logic: conversion then evaluation
-        _ = chain_conversion_and_evaluation.apply_async(
-            kwargs={
-                "api_key": api_key,
-                "input_model_id": model_id,
-                "target_framework": conversion_option.framework,
-                "target_device_name": conversion_option.device_name,
-                "target_data_type": conversion_option.precision,
-                "target_software_version": conversion_option.software_version,
-                "dataset_id": training_in.dataset.test_path,
-                "training_task_id": training_task_id,
-                "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
-            }
-        )
-
-    logger.info("Successfully initiated conversion and evaluation process")
-
-
 @celery_app.task(bind=True, name='train_model')
 def train_model(
     self,
@@ -363,6 +318,14 @@ def train_model(
                 # Prepare evaluation data
                 prepare_evaluation_data(trainer, training_in, dataset_path)
 
+                evaluation_task_ids = evaluation_task_service._create_evaluation_tasks(
+                    db=db,
+                    model_id=training_task.model_id,
+                    dataset_path=training_in.dataset.test_path,
+                    training_task_id=training_task_id,
+                    user_id=training_task.user_id,
+                )
+
                 # Get model paths
                 input_model_path, output_dir = get_model_paths(training_task_id)
 
@@ -377,6 +340,7 @@ def train_model(
                             "input_model_id": training_task.model_id,  # Use the already trained ONNX model ID
                             "dataset_id": training_in.dataset.test_path,
                             "training_task_id": training_task_id,
+                            "evaluation_task_ids": evaluation_task_ids,
                             "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
                         }
                     )
@@ -412,6 +376,7 @@ def train_model(
                             "target_software_version": training_in.conversion.software_version,
                             "dataset_id": training_in.dataset.test_path,
                             "training_task_id": training_task_id,
+                            "evaluation_task_ids": evaluation_task_ids,
                             "confidence_scores": DEFAULT_CONFIDENCE_SCORES,
                         }
                     )
